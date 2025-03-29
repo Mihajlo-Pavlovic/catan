@@ -3,6 +3,11 @@ from game.constants import RESOURCE_DISTRIBUTION, NUMBER_TOKENS, CORDS_UNWRAPED,
 
 
 class Vertex_Id:
+    """
+    Represents a vertex ID on the Catan board.
+    
+    A vertex ID is a tuple of (q, r, corner).
+    """
     def __init__(self, q, r, corner):
         self.q = q
         self.r = r
@@ -37,6 +42,11 @@ class Vertex:
         self.adjacent_vertices = []  # Neighboring vertex IDs
 
 class Edge_Id:
+    """
+    Represents an edge ID on the Catan board.
+    
+    An edge ID is a tuple of two vertex IDs.
+    """
     def __init__(self, v1_id: Vertex_Id, v2_id: Vertex_Id):
         self.v1_id = v1_id
         self.v2_id = v2_id
