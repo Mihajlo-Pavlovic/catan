@@ -121,12 +121,15 @@ class Board:
         tiles (list[Tile]): List of all tiles on the board
         vertices (dict): Dictionary mapping vertex IDs to Vertex objects
         edges (dict): Dictionary mapping edge IDs to Edge objects
+        nuber_tile_dict (dict): Dictionary mapping number tokens to tiles
     """
     def __init__(self):
         """Initialize a new Catan board with randomly distributed resources and numbers."""
         self.tiles: list[Tile] = []
         self.vertices: dict[Vertex_Id, Vertex] = {}
         self.edges: dict[Edge_Id, Edge] = {}
+        self.nuber_tile_dict: dict[int, Tile] = {}
+
         self._generate_tiles()
         self._generate_vertices()
         self._generate_edges()
@@ -155,7 +158,7 @@ class Board:
                 desert_passed += 1
             else:
                 tile.number = NUMBER_TOKENS[index - desert_passed]
-
+                self.number_tile_dict[tile.number] = tile
     def _generate_vertices(self):
         """
         Generate all vertices on the board.
