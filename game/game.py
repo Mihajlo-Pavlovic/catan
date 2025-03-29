@@ -178,6 +178,9 @@ class Game:
     def _distribute_resources(self, dice_roll: int):
       """
       Distribute resources to the players based on the dice roll.
+
+      Args:
+        dice_roll (int): The dice roll to distribute resources for
       """
       tilesThatCanGiveResource = self.board.number_tile_dict[dice_roll]
       tilesThatCanGiveResource= tilesThatCanGiveResource.filter(lambda tile: tile.cord != self.board.robber)
@@ -199,6 +202,12 @@ class Game:
     def _move_robber(self, tile_cord: tuple[int, int]):
       """
       Move the robber to the specified tile.
+
+      Args:
+        tile_cord (tuple[int, int]): The tile to move the robber to
+
+      Raises:
+        ValueError: If the robber is already on the tile
       """
       if tile_cord == self.board.robber:
         raise ValueError("Robber is already on this tile")
@@ -207,15 +216,22 @@ class Game:
     def _steal_resource(self, playerThatSteals: Player, playerThatLosesResource: Player):
       """
       Steal a random resource from a player.
+
+      Args:
+        playerThatSteals (Player): The player that will steal the resource
+        playerThatLosesResource (Player): The player that will lose the resource
+
+      Raises:
+        ValueError: If the player that steals is the same as the player that loses the resource
       """
-      assert playerThatSteals != playerThatLosesResource, "Cannot steal from yourself"
+      if playerThatSteals == playerThatLosesResource:
+        raise ValueError("Cannot steal from yourself")
       # Find playerThatLosesResource resource that are not 0
       resourcesThatCanBeStolen = [resource for resource in playerThatLosesResource.resources if playerThatLosesResource.resources[resource] > 0]
       resourceToSteal = random.choice(resourcesThatCanBeStolen)
       playerThatSteals.resources[resourceToSteal] += 1
       playerThatLosesResource.resources[resourceToSteal] -= 1
 
-    def _trade_with_bank(self, player: Player, resource_type: str, amount: int):
       
 
       
