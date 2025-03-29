@@ -9,8 +9,7 @@ class Vertex_Id:
     A vertex ID is a tuple of (q, r, corner).
     """
     def __init__(self, q, r, corner):
-        self.q = q
-        self.r = r
+        self.cord = (q, r)
         self.corner = corner
 
     def __repr__(self):
@@ -96,7 +95,7 @@ class Tile:
             cord (tuple): The (q, r) coordinates of the tile
         """
         self.resource_type = resource_type
-        self.cord = cord  # (q, r)
+        self.cord = cord
         self.number = None
 
     def __str__(self):
@@ -129,6 +128,7 @@ class Board:
         self.vertices: dict[Vertex_Id, Vertex] = {}
         self.edges: dict[Edge_Id, Edge] = {}
         self.nuber_tile_dict: dict[int, Tile] = {}
+        self.robber: Tile = None
 
         self._generate_tiles()
         self._generate_vertices()
@@ -156,6 +156,7 @@ class Board:
             tile = next((t for t in self.tiles if t.cord == coord), None)
             if tile.resource_type == "desert":
                 desert_passed += 1
+                self.robber = tile.cord
             else:
                 tile.number = NUMBER_TOKENS[index - desert_passed]
                 self.number_tile_dict[tile.number] = tile
