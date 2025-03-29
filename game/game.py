@@ -1,5 +1,5 @@
 #game/game.py
-
+import random
 from game.constants import MAX_SETTLEMENTS,MAX_CITIES,MAX_ROADS
 from game.board import Board, Vertex_Id, Edge_Id
 from game.player import Player
@@ -175,11 +175,47 @@ class Game:
             for resource_type in self._get_resource_from_vertex(vertex_id):
               player.resources[resource_type] += 1
 
+    def _distribute_resources(self, dice_roll: int):
+      """
+      Distribute resources to the players based on the dice roll.
+      """
+      tilesThatCanGiveResource = self.board.number_tile_dict[dice_roll]
+      tilesThatCanGiveResource= tilesThatCanGiveResource.filter(lambda tile: tile.cord != self.board.robber)
+      for tile in tilesThatCanGiveResource:
+        for player in self.players:
+          if tile.cord in player.settlements:
+            player.resources[tile.resource_type] += 1
+          if tile.cord in player.cities:
+            player.resources[tile.resource_type] += 1
+    
     def _roll_dice(self):
-        """
-        Roll the dice and distribute resources to the players.
-        """
-        dice_roll = random.randint(2, 12)
-        # TODO: Add robber logic here
-        #if dice_roll == 7:
-        
+      """
+      Dice can be any number between 2 and 12
+      """
+      dice_1 = random.randint(1, 6)
+      dice_2 = random.randint(1, 6)
+      return dice_1 + dice_2
+    
+    def _move_robber(self, tile_cord: tuple[int, int]):
+      """
+      Move the robber to the specified tile.
+      """
+      if tile_cord == self.board.robber:
+        raise ValueError("Robber is already on this tile")
+      self.board.robber = tile_cord
+    
+    def _steal_resource(self, playerThatSteals: Player, playerThatLosesResource: Player):
+      """
+      Steal a random resource from a player.
+      """
+      assert playerThatSteals != playerThatLosesResource, "Cannot steal from yourself"
+      # Find playerThatLosesResource resource that are not 0
+      resourcesThatCanBeStolen = [resource for resource in playerThatLosesResource.resources if playerThatLosesResource.resources[resource] > 0]
+      resourceToSteal = random.choice(resourcesThatCanBeStolen)
+      playerThatSteals.resources[resourceToSteal] += 1
+      playerThatLosesResource.resources[resourceToSteal] -= 1
+
+    def _trade_with_bank(self, player: Player, resource_type: str, amount: int):
+      
+
+      
