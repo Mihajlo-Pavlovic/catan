@@ -3,7 +3,25 @@ from game.constants import RESOURCE_DISTRIBUTION, NUMBER_TOKENS, CORDS_UNWRAPED,
 
 
 class Vertex:
+    """
+    Represents a vertex (intersection) on the Catan board.
+    
+    A vertex is where settlements and cities can be built. Each vertex is connected
+    to up to three tiles and up to three other vertices.
+    
+    Attributes:
+        id (tuple): A tuple of (q, r, corner_index) identifying the vertex position
+        settlement (Player|None): The player who has built on this vertex, or None
+        adjacent_tiles (list): List of adjacent tile coordinates as (q, r) tuples
+        adjacent_vertices (list): List of adjacent vertex IDs
+    """
     def __init__(self, vertex_id):
+        """
+        Initialize a new vertex.
+
+        Args:
+            vertex_id (tuple): A tuple of (q, r, corner_index) identifying the vertex position
+        """
         self.id = vertex_id  # Tuple (q, r, corner_index)
         self.settlement = None  # Player who owns it, or None
         self.adjacent_tiles = []  # List of tile (q, r) coordinates
@@ -11,23 +29,75 @@ class Vertex:
 
 
 class Edge:
+    """
+    Represents an edge between two vertices on the Catan board.
+    
+    An edge is where roads can be built. Each edge connects exactly two vertices.
+    
+    Attributes:
+        vertices (tuple): A tuple of two vertex IDs that this edge connects
+        road (Player|None): The player who has built a road on this edge, or None
+    """
     def __init__(self, v1_id, v2_id):
+        """
+        Initialize a new edge.
+
+        Args:
+            v1_id (tuple): ID of the first vertex
+            v2_id (tuple): ID of the second vertex
+        """
         self.vertices = (v1_id, v2_id)
         self.road = None
 
 
 class Tile:
+    """
+    Represents a hexagonal tile on the Catan board.
+    
+    Each tile has a resource type, coordinates, and a number token (except desert).
+    
+    Attributes:
+        resource_type (str): The type of resource this tile produces
+        cord (tuple): The (q, r) coordinates of the tile in the hexagonal grid
+        number (int|None): The number token on this tile, or None for desert
+    """
     def __init__(self, resource_type, cord):
+        """
+        Initialize a new tile.
+
+        Args:
+            resource_type (str): The type of resource this tile produces
+            cord (tuple): The (q, r) coordinates of the tile
+        """
         self.resource_type = resource_type
         self.cord = cord  # (q, r)
         self.number = None
 
     def __str__(self):
+        """
+        Returns a string representation of the tile.
+
+        Returns:
+            str: A string showing the resource type and number token
+        """
         return f"{self.resource_type} {self.number}"
 
 
 class Board:
+    """
+    Represents the Catan game board.
+    
+    The board consists of hexagonal tiles arranged in a larger hexagon,
+    with vertices where settlements/cities can be built and edges where
+    roads can be built.
+    
+    Attributes:
+        tiles (list[Tile]): List of all tiles on the board
+        vertices (dict): Dictionary mapping vertex IDs to Vertex objects
+        edges (dict): Dictionary mapping edge IDs to Edge objects
+    """
     def __init__(self):
+        """Initialize a new Catan board with randomly distributed resources and numbers."""
         self.tiles: list[Tile] = []
         self.vertices: dict[tuple[int, int, int], Vertex] = {}
         self.edges: dict[tuple, Edge] = {}
@@ -36,6 +106,12 @@ class Board:
         self._generate_edges()
 
     def _generate_tiles(self):
+        """
+        Generate and place all tiles on the board.
+        
+        Distributes resources randomly according to the standard game distribution
+        and assigns number tokens to all non-desert tiles.
+        """
         resources = []
         for resource, count in RESOURCE_DISTRIBUTION.items():
             resources.extend([resource] * count)
@@ -55,6 +131,12 @@ class Board:
                 tile.number = NUMBER_TOKENS[index - desert_passed]
 
     def _generate_vertices(self):
+        """
+        Generate all vertices on the board.
+        
+        Creates vertices at each corner of each tile and establishes
+        connections between vertices and their adjacent tiles.
+        """
         for tile in self.tiles:
             q, r = tile.cord
             for corner in range(6):
@@ -64,6 +146,12 @@ class Board:
                 self.vertices[vid].adjacent_tiles.append((q, r))
 
     def _generate_edges(self):
+        """
+        Generate all edges on the board.
+        
+        Creates edges between adjacent vertices and establishes
+        connections between vertices through these edges.
+        """
         for tile in self.tiles:
             q, r = tile.cord
             for i in range(6):
@@ -76,10 +164,27 @@ class Board:
                     self.vertices[v2].adjacent_vertices.append(v1)
 
     def _get_vertex_id(self, q, r, corner):
+        """
+        Calculate the ID of a vertex at a specific corner of a tile.
+
+        Args:
+            q (int): Q-coordinate of the tile
+            r (int): R-coordinate of the tile
+            corner (int): Corner index (0-5) of the tile
+
+        Returns:
+            tuple: A tuple (q, r, corner) identifying the vertex
+        """
         dq, dr, new_corner = VERTEX_OFFSETS[corner]
         return (q + dq, r + dr, new_corner)
 
     def display(self):
+        """
+        Display the board in a simple text-based hexagonal layout.
+        
+        Prints the board with proper indentation to create a hexagonal shape,
+        showing each tile's resource type and number.
+        """
         print("Catan Board (hex layout):\n")
 
         layout = [
@@ -99,6 +204,12 @@ class Board:
         print()
 
     def display_tile_layout_with_vertices(self):
+        """
+        Display a detailed view of the board showing tiles and their surrounding vertices.
+        
+        Prints each tile with its resource type, number token, and the IDs of its
+        six surrounding vertices in a visual representation.
+        """
         print("\n🗺️  Board Layout (Tiles + Surrounding Vertices):")
 
         for tile in self.tiles:
