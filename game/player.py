@@ -10,25 +10,22 @@ class Player:
     Attributes:
         name (str): The player's name
         color (str): The player's color for game pieces
-        board (Board): Reference to the game board
         resources (dict): Dictionary tracking the count of each resource type
         settlements (list): List of vertex IDs where the player has settlements
         towns (list): List of vertex IDs where the player has towns
         roads (list): List of edge keys where the player has roads
         victory_points (int): Current number of victory points
     """
-    def __init__(self, name: str, color: str, board):
+    def __init__(self, name: str, color: str):
         """
         Initialize a new player.
 
         Args:
             name (str): The player's name
             color (str): The player's color for game pieces
-            board (Board): Reference to the game board
         """
         self.name = name
         self.color = color
-        self.board = board
 
         # Resource inventory
         self.resources = {
@@ -59,12 +56,7 @@ class Player:
         
         Args:
             vertex_id (tuple): The ID of the vertex where the settlement is being placed
-            
-        Raises:
-            KeyError: If the vertex_id doesn't exist in the board
-            AssertionError: If the vertex_id is not in the board's vertices
         """
-        assert vertex_id in self.board.vertices, f"Vertex {vertex_id} does not exist on the board"
         self.settlements.append(vertex_id)
 
     def place_town(self, vertex_id):
@@ -73,12 +65,7 @@ class Player:
         
         Args:
             vertex_id (tuple): The ID of the vertex where the town is being placed
-            
-        Raises:
-            KeyError: If the vertex_id doesn't exist in the board
-            AssertionError: If the vertex_id is not in the board's vertices
         """
-        assert vertex_id in self.board.vertices, f"Vertex {vertex_id} does not exist on the board"
         self.towns.append(vertex_id)
         
     def place_road(self, edge_key):
