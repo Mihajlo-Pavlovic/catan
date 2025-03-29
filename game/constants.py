@@ -31,3 +31,7 @@ VERTEX_OFFSETS = [
     (-1, -1, 2),  # corner 5 → (q-1, r-1), corner 2
 ]
 
+MAX_SETTLEMENTS = 5
+MAX_ROADS = 15
+MAX_CITIES = 4
+

@@ -38,6 +38,7 @@ class Vertex:
         """
         self.id = vertex_id  # Tuple (q, r, corner_index)
         self.settlement = None  # Player who owns it, or None
+        self.city = None  # Player who owns it, or None
         self.adjacent_tiles = []  # List of tile (q, r) coordinates
         self.adjacent_vertices = []  # Neighboring vertex IDs
 
