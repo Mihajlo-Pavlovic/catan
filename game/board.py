@@ -1,7 +1,7 @@
 import random
 from game.constants import RESOURCE_DISTRIBUTION, NUMBER_TOKENS, CORDS_UNWRAPED, VALID_COORDS, VERTEX_OFFSETS
 
-
+Cord = tuple[int, int]
 Vertex_Id = tuple[int, int, int]
 class Vertex:
     """
@@ -94,14 +94,14 @@ class Board:
     roads can be built.
     
     Attributes:
-        tiles (list[Tile]): List of all tiles on the board
-        vertices (dict): Dictionary mapping vertex IDs to Vertex objects
-        edges (dict): Dictionary mapping edge IDs to Edge objects
-        nuber_tile_dict (dict): Dictionary mapping number tokens to tiles
+        tiles (dict[Cord, Tile]): Dictionary mapping tile coordinates to Tile objects
+        vertices (dict[Vertex_Id, Vertex]): Dictionary mapping vertex IDs to Vertex objects
+        edges (dict[Edge_Id, Edge]): Dictionary mapping edge IDs to Edge objects
+        nuber_tile_dict (dict[int, Tile]): Dictionary mapping number tokens to tiles
     """
     def __init__(self):
         """Initialize a new Catan board with randomly distributed resources and numbers."""
-        self.tiles: list[Tile] = []
+        self.tiles: dict[Cord, Tile] = {}
         self.vertices: dict[Vertex_Id, Vertex] = {}
         self.edges: dict[Edge_Id, Edge] = {}
         self.nuber_tile_dict: dict[int, Tile] = {}
@@ -130,7 +130,7 @@ class Board:
         # Assign number tokens
         desert_passed = 0
         for index, coord in enumerate(CORDS_UNWRAPED):
-            tile = next((t for t in self.tiles if t.cord == coord), None)
+            tile = self.tiles[coord]
             if tile.resource_type == "desert":
                 desert_passed += 1
                 self.robber = tile.cord
