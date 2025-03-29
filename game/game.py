@@ -25,10 +25,9 @@ class Game:
         self.board = Board()
         self.players = players
 
-    # def setup(self):
-    #     for player in self.players:
-    #         # Take user prompt to place initial settlement
-    #         # Take user prompt to place initial road
+    #def setup(self):
+        #for player in self.players:
+
 
     def _place_settlement(self, player: Player, vertex_id: Vertex_Id):
         """
@@ -148,3 +147,39 @@ class Game:
         player.resources["wheat"] -= 2
         player.resources["ore"] -= 3
         player.victory_points += 1
+
+
+    def _get_resource_from_vertex(self, vertex_id: Vertex_Id):
+        """
+        Get the resource type from a vertex.
+        
+        This method returns the resource type of the tile that the vertex is on.
+        Args:
+            vertex_id (Vertex_Id): The vertex to get the resource type from
+            
+        Returns:
+            list[str]: A list of resource types
+
+        Raises:
+            AssertionError: If the vertex doesn't exist on the board
+        """
+        assert vertex_id in self.board.vertices, f"Vertex {vertex_id} does not exist on the board"
+        return [tile.resource_type for tile in self.board.vertices[vertex_id].adjacent_tiles]
+    
+    def _distribute_initial_resources(self):
+        """
+        Distribute initial resources to each player.
+        """
+        for player in self.players:
+          for vertex_id in player.settlements:
+            for resource_type in self._get_resource_from_vertex(vertex_id):
+              player.resources[resource_type] += 1
+
+    def _roll_dice(self):
+        """
+        Roll the dice and distribute resources to the players.
+        """
+        dice_roll = random.randint(2, 12)
+        # TODO: Add robber logic here
+        #if dice_roll == 7:
+        
