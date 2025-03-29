@@ -1,5 +1,28 @@
 import random
-from game.constants import RESOURCE_DISTRIBUTION, NUMBER_TOKENS, CORDS_UNWRAPED, VALID_COORDS
+from game.constants import RESOURCE_DISTRIBUTION, NUMBER_TOKENS, CORDS_UNWRAPED, VALID_COORDS, VERTEX_OFFSETS
+
+
+class Vertex:
+    def __init__(self, vertex_id):
+        self.id = vertex_id  # Tuple (q, r, corner_index)
+        self.settlement = None  # Player who owns it, or None
+        self.adjacent_tiles = []  # List of tile (q, r) coordinates
+        self.adjacent_vertices = []  # Neighboring vertex IDs (optional for road building)
+
+
+class Edge:
+    def __init__(self, v1_id, v2_id):
+        self.vertices = (v1_id, v2_id)  # Tuple of vertex IDs
+        self.road = None  # Player who built the road, or None
+
+
+
+
+    
+class Edge:
+    def __init__(self, v1_id, v2_id):
+        self.vertices = (v1_id, v2_id)  # Tuple of vertex IDs
+        self.road = None  # Player who built the road, or None
 
 class Tile:
     def __init__(self, resource_type, cord):
@@ -13,7 +36,9 @@ class Tile:
 class Board:
     def __init__(self):
         self.tiles: list[Tile] = []
+        self.vertices: dict[tuple[int, int, int], Vertex] = {}
         self._generate_tiles()
+        self._generate_vertices()
 
     def _generate_tiles(self):
         resources = []
@@ -30,6 +55,34 @@ class Board:
                 desert_passed += 1
             else:
                 tile.number = NUMBER_TOKENS[index - desert_passed]
+
+    def _generate_vertices(self):
+      self.vertices = {}  # (q, r, corner) → Vertex
+
+      for (q, r), tile in self.tiles.items():
+          for corner in range(6):
+              vid = self._get_vertex_id(q, r, corner)
+              if vid not in self.vertices:
+                  self.vertices[vid] = Vertex(vid)
+              self.vertices[vid].adjacent_tiles.append((q, r))
+
+    def _get_vertex_id(self, q, r, corner):
+        dq, dr, new_corner = VERTEX_OFFSETS[corner]
+        return (q + dq, r + dr, new_corner)
+
+    def _generate_edges(self):
+        # Connect each vertex to the next in clockwise order
+        for (q, r) in self.tiles.keys():
+            for i in range(6):
+                v1 = self._get_vertex_id(q, r, i)
+                v2 = self._get_vertex_id(q, r, (i + 1) % 6)
+                edge_key = tuple(sorted([v1, v2]))
+                if edge_key not in self.edges:
+                    self.edges[edge_key] = Edge(*edge_key)
+                    # Optional: connect vertices to each other
+                    self.vertices[v1].adjacent_vertices.append(v2)
+                    self.vertices[v2].adjacent_vertices.append(v1)
+
 
     def display(self):
         print("Catan Board (hex layout):\n")
@@ -49,5 +102,9 @@ class Board:
             print(row_str)
 
         print()
+
+
+
+
 
     
