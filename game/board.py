@@ -2,6 +2,15 @@ import random
 from game.constants import RESOURCE_DISTRIBUTION, NUMBER_TOKENS, CORDS_UNWRAPED, VALID_COORDS, VERTEX_OFFSETS
 
 
+class Vertex_Id:
+    def __init__(self, q, r, corner):
+        self.q = q
+        self.r = r
+        self.corner = corner
+
+    def __repr__(self):
+        return f"({self.q}, {self.r}, {self.corner})"
+
 class Vertex:
     """
     Represents a vertex (intersection) on the Catan board.
@@ -15,7 +24,7 @@ class Vertex:
         adjacent_tiles (list): List of adjacent tile coordinates as (q, r) tuples
         adjacent_vertices (list): List of adjacent vertex IDs
     """
-    def __init__(self, vertex_id):
+    def __init__(self, vertex_id: Vertex_Id):
         """
         Initialize a new vertex.
 
@@ -27,7 +36,13 @@ class Vertex:
         self.adjacent_tiles = []  # List of tile (q, r) coordinates
         self.adjacent_vertices = []  # Neighboring vertex IDs
 
+class Edge_Id:
+    def __init__(self, v1_id: Vertex_Id, v2_id: Vertex_Id):
+        self.v1_id = v1_id
+        self.v2_id = v2_id
 
+    def __repr__(self):
+        return f"({self.v1_id}, {self.v2_id})"
 class Edge:
     """
     Represents an edge between two vertices on the Catan board.
@@ -38,7 +53,7 @@ class Edge:
         vertices (tuple): A tuple of two vertex IDs that this edge connects
         road (Player|None): The player who has built a road on this edge, or None
     """
-    def __init__(self, v1_id, v2_id):
+    def __init__(self, v1_id: Vertex_Id, v2_id: Vertex_Id):
         """
         Initialize a new edge.
 
@@ -46,7 +61,7 @@ class Edge:
             v1_id (tuple): ID of the first vertex
             v2_id (tuple): ID of the second vertex
         """
-        self.vertices = (v1_id, v2_id)
+        self.vertices = Edge_Id(v1_id, v2_id)
         self.road = None
 
 
@@ -99,8 +114,8 @@ class Board:
     def __init__(self):
         """Initialize a new Catan board with randomly distributed resources and numbers."""
         self.tiles: list[Tile] = []
-        self.vertices: dict[tuple[int, int, int], Vertex] = {}
-        self.edges: dict[tuple, Edge] = {}
+        self.vertices: dict[Vertex_Id, Vertex] = {}
+        self.edges: dict[Edge_Id, Edge] = {}
         self._generate_tiles()
         self._generate_vertices()
         self._generate_edges()
