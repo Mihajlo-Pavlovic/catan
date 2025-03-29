@@ -232,6 +232,9 @@ class Game:
       playerThatSteals.resources[resourceToSteal] += 1
       playerThatLosesResource.resources[resourceToSteal] -= 1
 
+
+
+      
       
 
       

@@ -2,19 +2,7 @@ import random
 from game.constants import RESOURCE_DISTRIBUTION, NUMBER_TOKENS, CORDS_UNWRAPED, VALID_COORDS, VERTEX_OFFSETS
 
 
-class Vertex_Id:
-    """
-    Represents a vertex ID on the Catan board.
-    
-    A vertex ID is a tuple of (q, r, corner).
-    """
-    def __init__(self, q, r, corner):
-        self.cord = (q, r)
-        self.corner = corner
-
-    def __repr__(self):
-        return f"({self.q}, {self.r}, {self.corner})"
-
+Vertex_Id = tuple[int, int, int]
 class Vertex:
     """
     Represents a vertex (intersection) on the Catan board.
@@ -41,18 +29,7 @@ class Vertex:
         self.adjacent_tiles = []  # List of tile (q, r) coordinates
         self.adjacent_vertices = []  # Neighboring vertex IDs
 
-class Edge_Id:
-    """
-    Represents an edge ID on the Catan board.
-    
-    An edge ID is a tuple of two vertex IDs.
-    """
-    def __init__(self, v1_id: Vertex_Id, v2_id: Vertex_Id):
-        self.v1_id = v1_id
-        self.v2_id = v2_id
-
-    def __repr__(self):
-        return f"({self.v1_id}, {self.v2_id})"
+Edge_Id = tuple[Vertex_Id, Vertex_Id]
 class Edge:
     """
     Represents an edge between two vertices on the Catan board.
