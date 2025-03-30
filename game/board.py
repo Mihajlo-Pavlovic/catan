@@ -48,7 +48,7 @@ class Edge:
             v1_id (tuple): ID of the first vertex
             v2_id (tuple): ID of the second vertex
         """
-        self.vertices = Edge_Id(v1_id, v2_id)
+        self.vertices = (v1_id, v2_id)  # Create a tuple directly
         self.road = None
 
 
@@ -97,15 +97,15 @@ class Board:
         tiles (dict[Cord, Tile]): Dictionary mapping tile coordinates to Tile objects
         vertices (dict[Vertex_Id, Vertex]): Dictionary mapping vertex IDs to Vertex objects
         edges (dict[Edge_Id, Edge]): Dictionary mapping edge IDs to Edge objects
-        nuber_tile_dict (dict[int, Tile]): Dictionary mapping number tokens to tiles
+        number_tile_dict (dict[int, Tile]): Dictionary mapping number tokens to tiles
     """
     def __init__(self):
         """Initialize a new Catan board with randomly distributed resources and numbers."""
         self.tiles: dict[Cord, Tile] = {}
         self.vertices: dict[Vertex_Id, Vertex] = {}
         self.edges: dict[Edge_Id, Edge] = {}
-        self.nuber_tile_dict: dict[int, Tile] = {}
-        self.robber: Tile = None
+        self.number_tile_dict: dict[int, Tile] = {}
+        self.robber: Cord = None
 
         self._generate_tiles()
         self._generate_vertices()
@@ -125,7 +125,7 @@ class Board:
 
         for coord in VALID_COORDS:
             res = resources.pop()
-            self.tiles.append(Tile(res, coord))
+            self.tiles[coord] = Tile(res, coord)
 
         # Assign number tokens
         desert_passed = 0
@@ -133,10 +133,11 @@ class Board:
             tile = self.tiles[coord]
             if tile.resource_type == "desert":
                 desert_passed += 1
-                self.robber = tile.cord
+                self.robber = coord
             else:
                 tile.number = NUMBER_TOKENS[index - desert_passed]
                 self.number_tile_dict[tile.number] = tile
+
     def _generate_vertices(self):
         """
         Generate all vertices on the board.
@@ -144,13 +145,13 @@ class Board:
         Creates vertices at each corner of each tile and establishes
         connections between vertices and their adjacent tiles.
         """
-        for tile in self.tiles:
-            q, r = tile.cord
+        for coord, tile in self.tiles.items():
+            q, r = coord
             for corner in range(6):
                 vid = self._get_vertex_id(q, r, corner)
                 if vid not in self.vertices:
                     self.vertices[vid] = Vertex(vid)
-                self.vertices[vid].adjacent_tiles.append((q, r))
+                self.vertices[vid].adjacent_tiles.append(coord)
 
     def _generate_edges(self):
         """
@@ -159,8 +160,8 @@ class Board:
         Creates edges between adjacent vertices and establishes
         connections between vertices through these edges.
         """
-        for tile in self.tiles:
-            q, r = tile.cord
+        for coord in self.tiles:
+            q, r = coord
             for i in range(6):
                 v1 = self._get_vertex_id(q, r, i)
                 v2 = self._get_vertex_id(q, r, (i + 1) % 6)

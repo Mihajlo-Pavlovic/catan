@@ -163,8 +163,9 @@ class Game:
         Raises:
             AssertionError: If the vertex doesn't exist on the board
         """
-        assert vertex_id in self.board.vertices, f"Vertex {vertex_id} does not exist on the board"
-        return [tile.resource_type for tile in self.board.vertices[vertex_id].adjacent_tiles]
+        vertex = self.board.vertices[vertex_id]
+        return [self.board.tiles[coord].resource_type for coord in vertex.adjacent_tiles]
+    
     
     def _distribute_initial_resources(self):
         """
