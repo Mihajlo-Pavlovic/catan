@@ -2,7 +2,7 @@ import random
 from game.constants import RESOURCE_DISTRIBUTION, NUMBER_TOKENS, CORDS_UNWRAPED, VALID_COORDS, VERTEX_OFFSETS
 
 Cord = tuple[int, int]
-Vertex_Id = tuple[int, int, int]
+Vertex_Id = tuple[int, int]
 class Vertex:
     """
     Represents a vertex (intersection) on the Catan board.
@@ -140,18 +140,26 @@ class Board:
 
     def _generate_vertices(self):
         """
-        Generate all vertices on the board.
-        
-        Creates vertices at each corner of each tile and establishes
-        connections between vertices and their adjacent tiles.
+        Compute the 6 vertex coordinates for the each tile hex at axial coordinate (q, r)
+        using a doubled-coordinate method for an even-q offset grid.
+        If the vertex does not exist, create a new vertex and add the tile to the vertex's adjacent tiles.
+        If the vertex already exists, add the tile to the vertex's adjacent tiles.
         """
-        for coord, tile in self.tiles.items():
-            q, r = coord
-            for corner in range(6):
-                vid = self._get_vertex_id(q, r, corner)
-                if vid not in self.vertices:
-                    self.vertices[vid] = Vertex(vid)
-                self.vertices[vid].adjacent_tiles.append(coord)
+        for cord, tile in self.tiles.items():
+            q, r = cord
+            # For an even-q offset, if q is odd, add a row offset
+            row_offset = 1 if q % 2 != 0 else 0
+            # Compute the hex center in doubled coordinate space (vertical component doubled)
+            cx = q * 2
+            cy = r * 2 + row_offset
+            for dx, dy in VERTEX_OFFSETS:
+                vertex_id = (cx + dx, cy + dy)
+                if vertex_id not in self.vertices:
+                    vertex = Vertex(vertex_id)
+                    vertex.adjacent_tiles.append(tile.cord)
+                    self.vertices[vertex_id] = vertex
+                else:
+                    self.vertices[vertex_id].adjacent_tiles.append(tile.cord)
 
     def _generate_edges(self):
         """
@@ -160,31 +168,21 @@ class Board:
         Creates edges between adjacent vertices and establishes
         connections between vertices through these edges.
         """
-        for coord in self.tiles:
-            q, r = coord
+        for tile in self.tiles.values():
+            q, r = tile.cord
             for i in range(6):
-                v1 = self._get_vertex_id(q, r, i)
-                v2 = self._get_vertex_id(q, r, (i + 1) % 6)
+                # Compute vertex IDs for each pair of adjacent corners
+                cx = q * 2
+                cy = r * 2 + (1 if q % 2 != 0 else 0)
+                dx1, dy1 = VERTEX_OFFSETS[i]
+                dx2, dy2 = VERTEX_OFFSETS[(i + 1) % 6]
+                v1 = (cx + dx1, cy + dy1)
+                v2 = (cx + dx2, cy + dy2)
                 edge_key = tuple(sorted([v1, v2]))
                 if edge_key not in self.edges:
                     self.edges[edge_key] = Edge(*edge_key)
                     self.vertices[v1].adjacent_vertices.append(v2)
                     self.vertices[v2].adjacent_vertices.append(v1)
-
-    def _get_vertex_id(self, q, r, corner):
-        """
-        Calculate the ID of a vertex at a specific corner of a tile.
-
-        Args:
-            q (int): Q-coordinate of the tile
-            r (int): R-coordinate of the tile
-            corner (int): Corner index (0-5) of the tile
-
-        Returns:
-            tuple: A tuple (q, r, corner) identifying the vertex
-        """
-        dq, dr, new_corner = VERTEX_OFFSETS[corner]
-        return (q + dq, r + dr, new_corner)
 
     def display(self):
         """
@@ -210,17 +208,17 @@ class Board:
             print(row_str)
 
         print()
-
-    def display_tile_layout_with_vertices(self):
+    
+    def display_board(self):
         """
         Display a detailed view of the board showing tiles and their surrounding vertices.
-        
+
         Prints each tile with its resource type, number token, and the IDs of its
         six surrounding vertices in a visual representation.
         """
         print("\n🗺️  Board Layout (Tiles + Surrounding Vertices):")
 
-        for tile in self.tiles:
+        for tile in self.tiles.values():
             q, r = tile.cord
             vertex_ids = [self._get_vertex_id(q, r, i) for i in range(6)]
             vertex_labels = [f"{vid}" for vid in vertex_ids]
