@@ -97,14 +97,14 @@ class Board:
         tiles (dict[Cord, Tile]): Dictionary mapping tile coordinates to Tile objects
         vertices (dict[Vertex_Id, Vertex]): Dictionary mapping vertex IDs to Vertex objects
         edges (dict[Edge_Id, Edge]): Dictionary mapping edge IDs to Edge objects
-        number_tile_dict (dict[int, Tile]): Dictionary mapping number tokens to tiles
+        number_tile_dict (dict[int, list[Tile]]): Dictionary mapping number tokens to tiles
     """
     def __init__(self):
         """Initialize a new Catan board with randomly distributed resources and numbers."""
         self.tiles: dict[Cord, Tile] = {}
         self.vertices: dict[Vertex_Id, Vertex] = {}
         self.edges: dict[Edge_Id, Edge] = {}
-        self.number_tile_dict: dict[int, Tile] = {}
+        self.number_tile_dict: dict[int, list[Tile]] = {i: [] for i in NUMBER_TOKENS}
         self.robber: Cord = None
 
         self._generate_tiles()
@@ -136,7 +136,7 @@ class Board:
                 self.robber = coord
             else:
                 tile.number = NUMBER_TOKENS[index - desert_passed]
-                self.number_tile_dict[tile.number] = tile
+                self.number_tile_dict[tile.number].append(tile)
 
             
 

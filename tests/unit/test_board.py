@@ -145,21 +145,24 @@ class TestBoard:
         """
         # Count non-desert tiles
         non_desert_tiles = [tile for tile in board.tiles.values() if tile.resource_type != "desert"]
-        
+        tile_in_number_tile_dict = 0
+        for number, tiles in board.number_tile_dict.items():
+            tile_in_number_tile_dict += len(tiles)
         # Check that number_tile_dict has all non-desert tiles
-        assert len(board.number_tile_dict) == len(non_desert_tiles), \
+        assert tile_in_number_tile_dict == len(non_desert_tiles), \
             "number_tile_dict should contain all non-desert tiles"
         
         # Verify each tile's number matches its entry in number_tile_dict
         for tile in non_desert_tiles:
             # The tile should be in number_tile_dict under its number
-            assert board.number_tile_dict[tile.number] == tile, \
+            assert tile in board.number_tile_dict[tile.number], \
                 f"Tile with number {tile.number} not properly mapped in number_tile_dict"
             
         # Verify each number_tile_dict entry matches tile's number
-        for number, tile in board.number_tile_dict.items():
-            assert tile.number == number, \
-                f"Mismatch between number_tile_dict key {number} and tile number {tile.number}"
+        for number, tiles in board.number_tile_dict.items():
+            for tile in tiles:
+                assert tile.number == number, \
+                    f"Mismatch between number_tile_dict key {number} and tile number {tile.number}"
 
 def test_vertex_neighbor_relationships():
     """
@@ -227,10 +230,11 @@ def test_edge_creation_is_consistent():
 
 def test_number_tile_mapping(board):
     """Test that number_tile_dict correctly maps numbers to tiles."""
-    for number, tile in board.number_tile_dict.items():
+    for number, tiles in board.number_tile_dict.items():
         assert 2 <= number <= 12
-        assert tile.number == number
-        assert tile.resource_type != "desert"
+        for tile in tiles:
+            assert tile.number == number
+            assert tile.resource_type != "desert"
 
 def test_vertex_tile_connections(board):
     """Test that vertices are correctly connected to adjacent tiles."""
