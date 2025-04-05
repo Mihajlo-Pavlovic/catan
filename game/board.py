@@ -1,8 +1,8 @@
 import random
-from game.constants import RESOURCE_DISTRIBUTION, NUMBER_TOKENS, CORDS_UNWRAPED, VALID_COORDS, VERTEX_OFFSETS
+from game.constants import MAX_VERTEX_ID, RESOURCE_DISTRIBUTION, NUMBER_TOKENS, CORDS_UNWRAPED, TILE_VERTEX_IDS, VALID_COORDS, VERTEX_NEIGHBORS, VERTEX_OFFSETS
 
 Cord = tuple[int, int]
-Vertex_Id = tuple[int, int]
+Vertex_Id = int
 class Vertex:
     """
     Represents a vertex (intersection) on the Catan board.
@@ -11,7 +11,7 @@ class Vertex:
     to up to three tiles and up to three other vertices.
     
     Attributes:
-        id (tuple): A tuple of (q, r, corner_index) identifying the vertex position
+        id (int): vertex id
         settlement (Player|None): The player who has built on this vertex, or None
         adjacent_tiles (list): List of adjacent tile coordinates as (q, r) tuples
         adjacent_vertices (list): List of adjacent vertex IDs
@@ -21,9 +21,9 @@ class Vertex:
         Initialize a new vertex.
 
         Args:
-            vertex_id (tuple): A tuple of (q, r, corner_index) identifying the vertex position
+            vertex_id (int): vertex id
         """
-        self.id = vertex_id  # Tuple (q, r, corner_index)
+        self.id = vertex_id  # int
         self.settlement = None  # Player who owns it, or None
         self.city = None  # Player who owns it, or None
         self.adjacent_tiles = []  # List of tile (q, r) coordinates
@@ -63,7 +63,7 @@ class Tile:
         cord (tuple): The (q, r) coordinates of the tile in the hexagonal grid
         number (int|None): The number token on this tile, or None for desert
     """
-    def __init__(self, resource_type, cord):
+    def __init__(self, resource_type: str, cord: Cord):
         """
         Initialize a new tile.
 
@@ -75,7 +75,7 @@ class Tile:
         self.cord = cord
         self.number = None
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         Returns a string representation of the tile.
 
@@ -138,51 +138,84 @@ class Board:
                 tile.number = NUMBER_TOKENS[index - desert_passed]
                 self.number_tile_dict[tile.number] = tile
 
-    def _generate_vertices(self):
+            
+
+    def _generate_vertices(self) -> None:
         """
-        Compute the 6 vertex coordinates for the each tile hex at axial coordinate (q, r)
-        using a doubled-coordinate method for an even-q offset grid.
-        If the vertex does not exist, create a new vertex and add the tile to the vertex's adjacent tiles.
-        If the vertex already exists, add the tile to the vertex's adjacent tiles.
+        Generate all vertices and establish their connections on the board.
+        
+        This method:
+        1. Creates all vertex objects with unique IDs
+        2. Establishes connections between adjacent vertices using VERTEX_NEIGHBORS
+        3. Links vertices to their adjacent tiles using TILE_VERTEX_IDS
+        
+        The method builds the complete vertex network that represents all possible
+        building locations on the Catan board. Each vertex knows:
+        - Its unique ID
+        - Which vertices it connects to (for road placement)
+        - Which tiles it touches (for resource collection)
         """
+        # Step 1: Create all vertices with unique IDs
+        for i in range(MAX_VERTEX_ID):
+            vertex = Vertex(i)
+            self.vertices[i] = vertex
+
+        # Step 2: Establish vertex-to-vertex connections (for road placement)
+        for i in range(MAX_VERTEX_ID):
+            for neighbor_id in VERTEX_NEIGHBORS[i]:
+                # Add reference to the actual vertex object (not just the ID)
+                self.vertices[i].adjacent_vertices.append(self.vertices[neighbor_id])
+
+        # Step 3: Link vertices to their adjacent tiles (for resource collection)
         for cord, tile in self.tiles.items():
-            q, r = cord
-            # For an even-q offset, if q is odd, add a row offset
-            row_offset = 1 if q % 2 != 0 else 0
-            # Compute the hex center in doubled coordinate space (vertical component doubled)
-            cx = q * 2
-            cy = r * 2 + row_offset
-            for dx, dy in VERTEX_OFFSETS:
-                vertex_id = (cx + dx, cy + dy)
-                if vertex_id not in self.vertices:
-                    vertex = Vertex(vertex_id)
-                    vertex.adjacent_tiles.append(tile.cord)
-                    self.vertices[vertex_id] = vertex
-                else:
-                    self.vertices[vertex_id].adjacent_tiles.append(tile.cord)
+            # For each tile, process its six surrounding vertices
+            for vertex_id in TILE_VERTEX_IDS[cord]:
+                # Add vertex reference to the tile
+                tile.vertex_ids.append(self.vertices[vertex_id])
+                # Add tile reference to the vertex
+                self.vertices[vertex_id].adjacent_tiles.append(self.tiles[cord])
 
     def _generate_edges(self):
         """
-        Generate all edges on the board.
+        Generate all valid edges between vertices using VERTEX_NEIGHBORS.
         
-        Creates edges between adjacent vertices and establishes
-        connections between vertices through these edges.
+        Creates Edge objects for each valid bidirectional connection between vertices,
+        ensuring each edge is only created once and can be accessed from either direction.
         """
-        for tile in self.tiles.values():
-            q, r = tile.cord
-            for i in range(6):
-                # Compute vertex IDs for each pair of adjacent corners
-                cx = q * 2
-                cy = r * 2 + (1 if q % 2 != 0 else 0)
-                dx1, dy1 = VERTEX_OFFSETS[i]
-                dx2, dy2 = VERTEX_OFFSETS[(i + 1) % 6]
-                v1 = (cx + dx1, cy + dy1)
-                v2 = (cx + dx2, cy + dy2)
-                edge_key = tuple(sorted([v1, v2]))
-                if edge_key not in self.edges:
-                    self.edges[edge_key] = Edge(*edge_key)
-                    self.vertices[v1].adjacent_vertices.append(v2)
-                    self.vertices[v2].adjacent_vertices.append(v1)
+        # Set to keep track of edges we've already added (in either direction)
+        added_edges = set()
+        
+        # Iterate through all vertices and their neighbors
+        for vertex_id, neighbors in VERTEX_NEIGHBORS.items():
+            for neighbor_id in neighbors:
+                # Create a canonical edge ID (always use smaller vertex ID first)
+                edge_id = tuple(sorted((vertex_id, neighbor_id)))
+                
+                # Only add the edge if we haven't seen it before
+                if edge_id not in added_edges:
+                    self.edges[edge_id] = Edge(edge_id[0], edge_id[1])
+                    added_edges.add(edge_id)
+                    
+                    # Add the reverse direction to the set to prevent duplicates
+                    reverse_edge_id = (edge_id[1], edge_id[0])
+                    added_edges.add(reverse_edge_id)
+
+    def get_edge(self, v1: int, v2: int) -> Edge:
+        """
+        Get the edge between two vertices, regardless of order.
+        
+        Args:
+            v1 (int): First vertex ID
+            v2 (int): Second vertex ID
+            
+        Returns:
+            Edge: The edge connecting the two vertices
+            
+        Raises:
+            KeyError: If no edge exists between these vertices
+        """
+        edge_id = tuple(sorted((v1, v2)))
+        return self.edges[edge_id]
 
     def display(self):
         """
