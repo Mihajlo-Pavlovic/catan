@@ -5,15 +5,15 @@ class Player:
     Represents a player in the Catan game.
     
     Each player has a name, color, resource inventory, and keeps track of their
-    settlements, roads, and victory points.
+    settlements, roads, cities and victory points.
     
     Attributes:
         name (str): The player's name
         color (str): The player's color for game pieces
-        resources (dict): Dictionary tracking the count of each resource type
-        settlements (list): List of vertex references where the player has settlements
-        towns (list): List of vertex references where the player has towns
-        roads (list): List of edge references where the player has roads
+        resources (dict[str, int]): Dictionary tracking the count of each resource type
+        settlements (list[Vertex]): List of vertex references where the player has settlements
+        cities (list[Vertex]): List of vertex references where the player has cities
+        roads (list[Edge]): List of edge references where the player has roads
         victory_points (int): Current number of victory points
     """
     def __init__(self, name: str, color: str):
@@ -50,14 +50,14 @@ class Player:
         """
         return f"Player {self.name} ({self.color})"
 
-    def place_settlement(self, vertex_id):
+    def place_settlement(self, vertex):
         """
         Place a settlement at the specified vertex.
         
         Args:
-            vertex_id (tuple): The ID of the vertex where the settlement is being placed
+            vertex (Vertex): The vertex where the settlement is being placed
         """
-        self.settlements.append(vertex_id)
+        self.settlements.append(vertex)
 
     def place_town(self, vertex_id):
         """
@@ -68,16 +68,14 @@ class Player:
         """
         self.towns.append(vertex_id)
         
-    def place_road(self, edge_key):
+    def place_road(self, edge):
         """
         Place a road at the specified edge.
         
-        Adds the edge to the player's list of roads.
-
         Args:
-            edge_key (tuple): A tuple of two vertex IDs representing the edge
+            edge (Edge): The edge where the road is being placed
         """
-        self.roads.append(edge_key)
+        self.roads.append(edge)
 
     def gain_resource(self, resource_type: str, amount: int = 1):
         """

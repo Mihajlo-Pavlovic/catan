@@ -36,13 +36,13 @@ class Game:
         This method enforces the following rules:
         - The vertex must exist on the board
         - The vertex must not be already occupied
-        - The player must have adjacent settlements
+        - The player must not have settlements on adjacent vertices
         - The player must not exceed maximum settlements
         - The player must have required resources (1 wood, 1 brick, 1 sheep, 1 wheat)
         
         Args:
             player (Player): The player placing the settlement
-            vertex_id (Vertex_Id): The vertex where the settlement will be placed
+            vertex (Vertex): The vertex where the settlement will be placed
             
         Raises:
             AssertionError: If the vertex doesn't exist on the board
@@ -174,23 +174,28 @@ class Game:
               player.resources[resource_type] += 1
 
     def _distribute_resources(self, dice_roll: int):
-      """
-      Distribute resources to the players based on the dice roll.
+        """
+        Distribute resources to the players based on the dice roll.
+        
+        For each tile matching the dice roll:
+        - Skip if robber is on the tile
+        - Give 1 resource to players with settlements on the tile's vertices
+        - Give 2 resources to players with cities on the tile's vertices
 
-      Args:
-        dice_roll (int): The dice roll to distribute resources for
-      """
-      tilesThatCanGiveResource = self.board.number_tile_dict[dice_roll]
-      for tile in tilesThatCanGiveResource:
-        if tile.cord == self.board.robber:
-          continue
-        for player in self.players:
-          for vertex in tile.vertices:
-            if vertex in player.settlements:
-              player.resources[tile.resource_type] += 1
-          for vertex in tile.vertices:
-            if vertex in player.cities:
-              player.resources[tile.resource_type] += 1
+        Args:
+            dice_roll (int): The dice roll to distribute resources for (2-12)
+        """
+        tilesThatCanGiveResource = self.board.number_tile_dict[dice_roll]
+        for tile in tilesThatCanGiveResource:
+          if tile.cord == self.board.robber:
+            continue
+          for player in self.players:
+            for vertex in tile.vertices:
+              if vertex in player.settlements:
+                player.resources[tile.resource_type] += 1
+            for vertex in tile.vertices:
+              if vertex in player.cities:
+                player.resources[tile.resource_type] += 1
     
     def _roll_dice(self):
       """

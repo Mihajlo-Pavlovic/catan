@@ -37,7 +37,7 @@ class Edge:
     An edge is where roads can be built. Each edge connects exactly two vertices.
     
     Attributes:
-        vertices (tuple): A tuple of two vertex IDs that this edge connects
+        vertices (tuple[Vertex_Id, Vertex_Id]): A tuple of two vertex IDs that this edge connects
         road (Player|None): The player who has built a road on this edge, or None
     """
     def __init__(self, v1_id: Vertex_Id, v2_id: Vertex_Id):
@@ -45,8 +45,8 @@ class Edge:
         Initialize a new edge.
 
         Args:
-            v1_id (tuple): ID of the first vertex
-            v2_id (tuple): ID of the second vertex
+            v1_id (Vertex_Id): ID of the first vertex
+            v2_id (Vertex_Id): ID of the second vertex
         """
         self.vertices = (v1_id, v2_id)  # Create a tuple directly
         self.road = None
@@ -97,7 +97,8 @@ class Board:
         tiles (dict[Cord, Tile]): Dictionary mapping tile coordinates to Tile objects
         vertices (dict[Vertex_Id, Vertex]): Dictionary mapping vertex IDs to Vertex objects
         edges (dict[Edge_Id, Edge]): Dictionary mapping edge IDs to Edge objects
-        number_tile_dict (dict[int, list[Tile]]): Dictionary mapping number tokens to tiles
+        number_tile_dict (dict[int, list[Tile]]): Dictionary mapping dice numbers to lists of tiles
+        robber (Cord): Coordinates of the tile where the robber is located
     """
     def __init__(self):
         """Initialize a new Catan board with randomly distributed resources and numbers."""
