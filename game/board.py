@@ -1,5 +1,5 @@
 import random
-from game.constants import MAX_VERTEX_ID, RESOURCE_DISTRIBUTION, NUMBER_TOKENS, CORDS_UNWRAPED, TILE_VERTEX_IDS, VALID_COORDS, VERTEX_NEIGHBORS, VERTEX_OFFSETS
+from game.constants import MAX_VERTEX_ID, RESOURCE_DISTRIBUTION, NUMBER_TOKENS, CORDS_UNWRAPED, TILE_VERTEX_IDS, VALID_COORDS, VERTEX_NEIGHBORS
 
 Cord = tuple[int, int]
 Vertex_Id = int
@@ -13,8 +13,8 @@ class Vertex:
     Attributes:
         id (int): vertex id
         settlement (Player|None): The player who has built on this vertex, or None
-        adjacent_tiles (list): List of adjacent tile coordinates as (q, r) tuples
-        adjacent_vertices (list): List of adjacent vertex IDs
+        adjacent_tiles (list): List of adjacent tile references
+        adjacent_vertices (list): List of adjacent vertex references
     """
     def __init__(self, vertex_id: Vertex_Id):
         """
@@ -26,8 +26,8 @@ class Vertex:
         self.id = vertex_id  # int
         self.settlement = None  # Player who owns it, or None
         self.city = None  # Player who owns it, or None
-        self.adjacent_tiles = []  # List of tile (q, r) coordinates
-        self.adjacent_vertices = []  # Neighboring vertex IDs
+        self.adjacent_tiles = []  # List of tile references
+        self.adjacent_vertices = []  # Neighboring vertex references
 
 Edge_Id = tuple[Vertex_Id, Vertex_Id]
 class Edge:
@@ -74,7 +74,7 @@ class Tile:
         self.resource_type = resource_type
         self.cord = cord
         self.number = None
-
+        self.vertex_ids = []
     def __str__(self) -> str:
         """
         Returns a string representation of the tile.
@@ -156,12 +156,12 @@ class Board:
         - Which tiles it touches (for resource collection)
         """
         # Step 1: Create all vertices with unique IDs
-        for i in range(MAX_VERTEX_ID):
+        for i in range(MAX_VERTEX_ID + 1):
             vertex = Vertex(i)
             self.vertices[i] = vertex
 
         # Step 2: Establish vertex-to-vertex connections (for road placement)
-        for i in range(MAX_VERTEX_ID):
+        for i in range(MAX_VERTEX_ID + 1):
             for neighbor_id in VERTEX_NEIGHBORS[i]:
                 # Add reference to the actual vertex object (not just the ID)
                 self.vertices[i].adjacent_vertices.append(self.vertices[neighbor_id])
@@ -189,15 +189,16 @@ class Board:
         for vertex_id, neighbors in VERTEX_NEIGHBORS.items():
             for neighbor_id in neighbors:
                 # Create a canonical edge ID (always use smaller vertex ID first)
-                edge_id = tuple(sorted((vertex_id, neighbor_id)))
+                v1, v2 = sorted((vertex_id, neighbor_id))
+                edge_id = (v1, v2)
                 
                 # Only add the edge if we haven't seen it before
                 if edge_id not in added_edges:
-                    self.edges[edge_id] = Edge(edge_id[0], edge_id[1])
+                    self.edges[edge_id] = Edge(v1, v2)
                     added_edges.add(edge_id)
                     
                     # Add the reverse direction to the set to prevent duplicates
-                    reverse_edge_id = (edge_id[1], edge_id[0])
+                    reverse_edge_id = (v2, v1)
                     added_edges.add(reverse_edge_id)
 
     def get_edge(self, v1: int, v2: int) -> Edge:

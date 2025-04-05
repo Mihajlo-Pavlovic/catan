@@ -1,5 +1,140 @@
 import pytest
-from game.constants import VERTEX_NEIGHBORS
+from game.board import Board, Vertex, Edge, Tile
+from game.constants import (
+    MAX_VERTEX_ID,
+    VERTEX_NEIGHBORS, 
+    TILE_VERTEX_IDS, 
+    VALID_COORDS, 
+    RESOURCE_DISTRIBUTION,
+    NUMBER_TOKENS
+)
+
+# Fixtures
+@pytest.fixture
+def board():
+    """Create a fresh board instance for each test."""
+    return Board()
+
+@pytest.fixture
+def vertex():
+    """Create a vertex instance for testing."""
+    return Vertex(0)
+
+@pytest.fixture
+def edge():
+    """Create an edge instance for testing."""
+    return Edge(0, 1)
+
+@pytest.fixture
+def tile():
+    """Create a tile instance for testing."""
+    return Tile("wood", (0, 0))
+
+# Vertex Tests
+class TestVertex:
+    def test_vertex_initialization(self, vertex):
+        """Test vertex is properly initialized."""
+        assert vertex.id == 0
+        assert vertex.settlement is None
+        assert vertex.city is None
+        assert vertex.adjacent_tiles == []
+        assert vertex.adjacent_vertices == []
+
+# Edge Tests
+class TestEdge:
+    def test_edge_initialization(self, edge):
+        """Test edge is properly initialized."""
+        assert edge.vertices == (0, 1)
+        assert edge.road is None
+
+# Tile Tests
+class TestTile:
+    def test_tile_initialization(self, tile):
+        """Test tile is properly initialized."""
+        assert tile.resource_type == "wood"
+        assert tile.cord == (0, 0)
+        assert tile.number is None
+        assert tile.vertex_ids == []
+
+    def test_tile_string_representation(self, tile):
+        """Test tile string representation."""
+        tile.number = 6
+        assert str(tile) == "wood 6"
+
+# Board Tests
+class TestBoard:
+    def test_board_initialization(self, board):
+        """Test board is properly initialized."""
+        assert isinstance(board.tiles, dict)
+        assert isinstance(board.vertices, dict)
+        assert isinstance(board.edges, dict)
+        assert isinstance(board.number_tile_dict, dict)
+        assert board.robber is not None
+
+    def test_tile_generation(self, board):
+        """Test tiles are properly generated."""
+        # Check correct number of tiles
+        assert len(board.tiles) == len(VALID_COORDS)
+        
+        # Check resource distribution
+        resource_count = {}
+        for tile in board.tiles.values():
+            resource_count[tile.resource_type] = resource_count.get(tile.resource_type, 0) + 1
+        
+        assert resource_count == RESOURCE_DISTRIBUTION
+
+    def test_vertex_generation(self, board):
+        """Test vertices are properly generated."""
+        # Check all vertices exist
+
+        max_vertex_id = max(VERTEX_NEIGHBORS.keys())
+        assert max_vertex_id == MAX_VERTEX_ID
+        assert len(board.vertices) == max_vertex_id + 1
+        
+        # Check vertex connections
+        for vertex_id, vertex in board.vertices.items():
+            expected_neighbors = VERTEX_NEIGHBORS[vertex_id]
+            actual_neighbors = [v.id for v in vertex.adjacent_vertices]
+            assert sorted(actual_neighbors) == sorted(expected_neighbors)
+
+    def test_number_token_distribution(self, board):
+        """Test number tokens are properly distributed."""
+        # Count number tokens
+        number_counts = {}
+        for tile in board.tiles.values():
+            if tile.number is not None:
+                number_counts[tile.number] = number_counts.get(tile.number, 0) + 1
+        
+        # Check all numbers from NUMBER_TOKENS are used
+        for number in NUMBER_TOKENS:
+            assert number in board.number_tile_dict
+
+    def test_robber_initial_placement(self, board):
+        """Test robber is initially placed on desert tile."""
+        robber_tile = board.tiles[board.robber]
+        assert robber_tile.resource_type == "desert"
+
+    def test_vertex_tile_connections(self, board):
+        """Test vertices are properly connected to tiles."""
+        for coord, tile in board.tiles.items():
+            vertex_ids = TILE_VERTEX_IDS[coord]
+            # Check tile's vertices
+            assert len(tile.vertex_ids) == len(vertex_ids)
+            # Check vertices' tiles
+            for vertex_id in vertex_ids:
+                vertex = board.vertices[vertex_id]
+                assert coord in [t.cord for t in vertex.adjacent_tiles]
+
+    def test_get_edge(self, board):
+        """Test edge retrieval."""
+        # Test existing edge
+        edge = board.get_edge(0, 1)
+        assert isinstance(edge, Edge)
+        assert edge.vertices == (0, 1)
+
+        # Test non-existing edge
+        with pytest.raises(KeyError):
+            board.get_edge(0, 99)
 
 def test_vertex_neighbor_relationships():
     """
@@ -63,4 +198,19 @@ def test_edge_creation_is_consistent():
         assert edge1 in board.edges
         assert edge1 == edge2, f"Edge ordering inconsistent: {edge1} != {edge2}"
         assert board.edges[edge1] == board.edges[edge2], \
-            f"Different edge objects for same connection: {edge1} and {edge2}" 
+            f"Different edge objects for same connection: {edge1} and {edge2}"
+
+def test_number_tile_mapping(board):
+    """Test that number_tile_dict correctly maps numbers to tiles."""
+    for number, tile in board.number_tile_dict.items():
+        assert 2 <= number <= 12
+        assert tile.number == number
+        assert tile.resource_type != "desert"
+
+def test_vertex_tile_connections(board):
+    """Test that vertices are correctly connected to adjacent tiles."""
+    for tile_coord, tile_vertex_ids in TILE_VERTEX_IDS.items():
+        tile = board.tiles[tile_coord]
+        for vertex_id in tile_vertex_ids:
+            vertex = board.vertices[vertex_id]
+            assert tile in vertex.adjacent_tiles 
