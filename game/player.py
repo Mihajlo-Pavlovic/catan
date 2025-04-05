@@ -11,9 +11,9 @@ class Player:
         name (str): The player's name
         color (str): The player's color for game pieces
         resources (dict): Dictionary tracking the count of each resource type
-        settlements (list): List of vertex IDs where the player has settlements
-        towns (list): List of vertex IDs where the player has towns
-        roads (list): List of edge keys where the player has roads
+        settlements (list): List of vertex references where the player has settlements
+        towns (list): List of vertex references where the player has towns
+        roads (list): List of edge references where the player has roads
         victory_points (int): Current number of victory points
     """
     def __init__(self, name: str, color: str):
@@ -36,9 +36,9 @@ class Player:
             "ore": 0
         }
 
-        self.settlements = []  # list of vertex IDs
-        self.towns = []        # list of vertex IDs
-        self.roads = []        # list of edge keys (tuple of 2 vertex IDs)
+        self.settlements = []  # list of vertex references
+        self.cities = []        # list of vertex references
+        self.roads = []        # list of edge references
         self.victory_points = 0
 
     def __repr__(self):

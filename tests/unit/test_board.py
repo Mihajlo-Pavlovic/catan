@@ -54,7 +54,7 @@ class TestTile:
         assert tile.resource_type == "wood"
         assert tile.cord == (0, 0)
         assert tile.number is None
-        assert tile.vertex_ids == []
+        assert tile.vertices == []
 
     def test_tile_string_representation(self, tile):
         """Test tile string representation."""
@@ -119,7 +119,7 @@ class TestBoard:
         for coord, tile in board.tiles.items():
             vertex_ids = TILE_VERTEX_IDS[coord]
             # Check tile's vertices
-            assert len(tile.vertex_ids) == len(vertex_ids)
+            assert len(tile.vertices) == len(vertex_ids)
             # Check vertices' tiles
             for vertex_id in vertex_ids:
                 vertex = board.vertices[vertex_id]

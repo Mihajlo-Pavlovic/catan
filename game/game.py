@@ -1,7 +1,7 @@
 #game/game.py
 import random
 from game.constants import MAX_SETTLEMENTS,MAX_CITIES,MAX_ROADS
-from game.board import Board, Vertex_Id, Edge_Id
+from game.board import Board, Edge, Vertex, Vertex_Id, Edge_Id
 from game.player import Player
 
 class Game:
@@ -29,7 +29,7 @@ class Game:
         #for player in self.players:
 
 
-    def _place_settlement(self, player: Player, vertex_id: Vertex_Id):
+    def _place_settlement(self, player: Player, vertex: Vertex):
         """
         Place a settlement for a player at the specified vertex.
         
@@ -48,14 +48,13 @@ class Game:
             AssertionError: If the vertex doesn't exist on the board
             ValueError: If placement violates any game rules
         """
-        assert vertex_id in self.board.vertices, f"Vertex {vertex_id} does not exist on the board"
-        vertex = self.board.vertices[vertex_id]
+        assert vertex.id in self.board.vertices.keys(), f"Vertex {vertex} does not exist on the board"
         # Check if vertex is already occupied
         if vertex.settlement is not None:
           raise ValueError("Vertex already has a settlement")
-      # For each adjacent vertex check if the player has a settlement, if not, raise an error
+      # For each adjacent vertex check if there is a settlement, if yes, raise an error
         for adjacent_vertex in vertex.adjacent_vertices:
-          if self.board.vertices[adjacent_vertex].settlement is None:
+          if adjacent_vertex.settlement is not None:
             raise ValueError("Player does not have a settlement adjacent to this vertex")
         # Check if player has enough resources
         if len(player.settlements) >= MAX_SETTLEMENTS:
@@ -64,7 +63,7 @@ class Game:
           raise ValueError("Player does not have enough resources to place a settlement")
         # Place settlement
         vertex.settlement = player
-        player.settlements.append(vertex_id)
+        player.settlements.append(vertex)
         # Remove resources from player
         player.resources["wood"] -= 1
         player.resources["brick"] -= 1
@@ -72,7 +71,7 @@ class Game:
         player.resources["wheat"] -= 1
         player.victory_points += 1
 
-    def _place_road(self, player: Player, edge_id: Edge_Id):
+    def _place_road(self, player: Player, edge : Edge):
         """
         Place a road for a player at the specified edge.
         
@@ -90,8 +89,7 @@ class Game:
             AssertionError: If the edge doesn't exist on the board
             ValueError: If placement violates any game rules
         """
-        assert edge_id in self.board.edges, f"Edge {edge_id} does not exist on the board"
-        edge = self.board.edges[edge_id]
+        assert edge.id in self.board.edges, f"Edge {edge} does not exist on the board"
         # Check if edge is already occupied
         if edge.road is not None:
           raise ValueError("Edge already has a road")
@@ -103,11 +101,12 @@ class Game:
           raise ValueError("Player has too many roads")
         # Place road
         edge.road = player
-        player.roads.append(edge_id)
+        player.roads.append(edge)
         # Remove resources from player
         player.resources["wood"] -= 1
         player.resources["brick"] -= 1
-    def _place_city(self, player: Player, vertex_id: Vertex_Id):
+
+    def _place_city(self, player: Player, vertex: Vertex):
         """
         Upgrade a settlement to a city for a player at the specified vertex.
         
@@ -126,8 +125,7 @@ class Game:
             AssertionError: If the vertex doesn't exist on the board
             ValueError: If placement violates any game rules
         """
-        assert vertex_id in self.board.vertices, f"Vertex {vertex_id} does not exist on the board"
-        vertex = self.board.vertices[vertex_id]
+        assert vertex.id in self.board.vertices, f"Vertex {vertex} does not exist on the board"
         # Check if vertex is already occupied
         if vertex.settlement != player:
           raise ValueError("Vertex does not have player's settlement")
@@ -141,15 +139,14 @@ class Game:
           raise ValueError("Player has too many cities")
         # Place city
         vertex.city = player
-        player.cities.append(vertex_id)
-        player.settlements.remove(vertex_id)
+        player.cities.append(vertex)
         # Remove resources from player
         player.resources["wheat"] -= 2
         player.resources["ore"] -= 3
         player.victory_points += 1
 
 
-    def _get_resource_from_vertex(self, vertex_id: Vertex_Id):
+    def _get_resource_from_vertex(self, vertex: Vertex):
         """
         Get the resource type from a vertex.
         
@@ -163,17 +160,17 @@ class Game:
         Raises:
             AssertionError: If the vertex doesn't exist on the board
         """
-        vertex = self.board.vertices[vertex_id]
-        return [self.board.tiles[coord].resource_type for coord in vertex.adjacent_tiles]
+        return [tile.resource_type for tile in vertex.adjacent_tiles]
     
     
     def _distribute_initial_resources(self):
-        """
-        Distribute initial resources to each player.
-        """
-        for player in self.players:
-          for vertex_id in player.settlements:
-            for resource_type in self._get_resource_from_vertex(vertex_id):
+      """
+      Distribute initial resources to each player.
+      """
+      for player in self.players:
+        for vertex in player.settlements:
+          for resource_type in self._get_resource_from_vertex(vertex):
+            if resource_type != "desert":
               player.resources[resource_type] += 1
 
     def _distribute_resources(self, dice_roll: int):
@@ -184,13 +181,16 @@ class Game:
         dice_roll (int): The dice roll to distribute resources for
       """
       tilesThatCanGiveResource = self.board.number_tile_dict[dice_roll]
-      tilesThatCanGiveResource= tilesThatCanGiveResource.filter(lambda tile: tile.cord != self.board.robber)
       for tile in tilesThatCanGiveResource:
+        if tile.cord == self.board.robber:
+          continue
         for player in self.players:
-          if tile.cord in player.settlements:
-            player.resources[tile.resource_type] += 1
-          if tile.cord in player.cities:
-            player.resources[tile.resource_type] += 1
+          for vertex in tile.vertices:
+            if vertex in player.settlements:
+              player.resources[tile.resource_type] += 1
+          for vertex in tile.vertices:
+            if vertex in player.cities:
+              player.resources[tile.resource_type] += 1
     
     def _roll_dice(self):
       """

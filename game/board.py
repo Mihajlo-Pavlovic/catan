@@ -74,7 +74,7 @@ class Tile:
         self.resource_type = resource_type
         self.cord = cord
         self.number = None
-        self.vertex_ids = []
+        self.vertices = []
     def __str__(self) -> str:
         """
         Returns a string representation of the tile.
@@ -171,9 +171,9 @@ class Board:
             # For each tile, process its six surrounding vertices
             for vertex_id in TILE_VERTEX_IDS[cord]:
                 # Add vertex reference to the tile
-                tile.vertex_ids.append(self.vertices[vertex_id])
+                tile.vertices.append(self.vertices[vertex_id])
                 # Add tile reference to the vertex
-                self.vertices[vertex_id].adjacent_tiles.append(self.tiles[cord])
+                self.vertices[vertex_id].adjacent_tiles.append(tile)
 
     def _generate_edges(self):
         """
