@@ -136,6 +136,31 @@ class TestBoard:
         with pytest.raises(KeyError):
             board.get_edge(0, 99)
 
+    def test_number_tile_dict_completeness(self, board):
+        """
+        Test that all non-desert tiles are in number_tile_dict with correct numbers.
+        Verifies both directions of the mapping:
+        1. Every non-desert tile should be in number_tile_dict
+        2. Every entry in number_tile_dict should point to the correct tile
+        """
+        # Count non-desert tiles
+        non_desert_tiles = [tile for tile in board.tiles.values() if tile.resource_type != "desert"]
+        
+        # Check that number_tile_dict has all non-desert tiles
+        assert len(board.number_tile_dict) == len(non_desert_tiles), \
+            "number_tile_dict should contain all non-desert tiles"
+        
+        # Verify each tile's number matches its entry in number_tile_dict
+        for tile in non_desert_tiles:
+            # The tile should be in number_tile_dict under its number
+            assert board.number_tile_dict[tile.number] == tile, \
+                f"Tile with number {tile.number} not properly mapped in number_tile_dict"
+            
+        # Verify each number_tile_dict entry matches tile's number
+        for number, tile in board.number_tile_dict.items():
+            assert tile.number == number, \
+                f"Mismatch between number_tile_dict key {number} and tile number {tile.number}"
+
 def test_vertex_neighbor_relationships():
     """
     Test that all vertex neighbor relationships are bidirectional.
