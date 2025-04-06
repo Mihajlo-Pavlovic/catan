@@ -218,6 +218,33 @@ class Game:
       if tile_cord == self.board.robber:
         raise ValueError("Robber is already on this tile")
       self.board.robber = tile_cord
+
+    def _who_to_slash(self) -> list[Player]:
+        """
+        Determine which players must discard half their resources when a 7 is rolled.
+        
+        According to Catan rules:
+        - When a 7 is rolled, any player with more than 7 cards must discard half
+        - The number of cards to discard is rounded down
+        - Players choose which cards to discard
+        
+        Returns:
+            list[Player]: List of players who have more than 7 resource cards
+        
+        Example:
+            If a player has 9 resources, they must discard 4 resources (9/2 rounded down)
+            If a player has 7 or fewer resources, they keep all their cards
+        """
+        players_to_slash = []
+        for player in self.players:
+            # Calculate total number of resource cards for this player
+            player_resource_sum = sum(player.resources.values())
+            
+            # If player has more than 7 cards, they must discard
+            if player_resource_sum > 7:
+                players_to_slash.append(player)
+                
+        return players_to_slash
     
     def _steal_resource(self, playerThatSteals: Player, playerThatLosesResource: Player):
       """
