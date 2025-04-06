@@ -69,3 +69,142 @@ def test_player_str_representation(player):
     """Test the string representation of a player."""
     expected = f"Player Test Player (red)"
     assert str(player) == expected 
+
+def test_slash_correct_amount(player):
+    """Test slashing correct amount of resources."""
+    # Give player 10 resources
+    player.resources = {
+        "wood": 3,
+        "brick": 2,
+        "sheep": 2,
+        "wheat": 2,
+        "ore": 1
+    }  # Total: 10 resources, should slash 5
+    
+    # Slash half of resources
+    player.slash({
+        "wood": 2,
+        "brick": 1,
+        "sheep": 1,
+        "wheat": 1
+    })  # Slashing 5 resources
+    
+    # Verify remaining resources
+    assert player.resources == {
+        "wood": 1,
+        "brick": 1,
+        "sheep": 1,
+        "wheat": 1,
+        "ore": 1
+    }
+
+def test_slash_insufficient_total(player):
+    """Test slashing fails when total resources are 7 or fewer."""
+    # Give player 7 resources
+    player.resources = {
+        "wood": 2,
+        "brick": 1,
+        "sheep": 1,
+        "wheat": 2,
+        "ore": 1
+    }  # Total: 7 resources
+    
+    with pytest.raises(AssertionError, match="Cannot slash if player has 7 or fewer resources"):
+        player.slash({"wood": 1, "brick": 1})
+
+def test_slash_wrong_amount(player):
+    """Test slashing fails when discarding wrong amount."""
+    # Give player 10 resources
+    player.resources = {
+        "wood": 3,
+        "brick": 2,
+        "sheep": 2,
+        "wheat": 2,
+        "ore": 1
+    }  # Total: 10 resources, should slash 5
+    
+    # Try to slash wrong amount
+    with pytest.raises(AssertionError, match="Must discard exactly 5 cards"):
+        player.slash({"wood": 2, "brick": 1})  # Only slashing 3 resources
+
+def test_slash_invalid_resource(player):
+    """Test slashing fails with invalid resource type."""
+    # Give player 8 resources
+    player.resources = {
+        "wood": 4,
+        "brick": 2,
+        "sheep": 2
+    }
+    
+    with pytest.raises(AssertionError, match="Invalid resource type"):
+        player.slash({"invalid_resource": 4})
+
+def test_slash_insufficient_specific_resource(player):
+    """Test slashing fails when trying to slash more of a resource than available."""
+    # Give player 8 resources
+    player.resources = {
+        "wood": 4,
+        "brick": 2,
+        "sheep": 2
+    }
+    
+    with pytest.raises(AssertionError, match="Not enough wood"):
+        player.slash({"wood": 5})  # Trying to slash 5 wood when only 4 available
+
+def test_slash_negative_amount(player):
+    """Test slashing fails when trying to slash negative amount."""
+    # Give player 8 resources
+    player.resources = {
+        "wood": 4,
+        "brick": 2,
+        "sheep": 2
+    }
+    
+    with pytest.raises(AssertionError, match="Cannot slash negative amount"):
+        player.slash({"wood": -1})
+
+def test_slash_odd_number_resources(player):
+    """Test slashing with odd number of total resources."""
+    # Give player 9 resources
+    player.resources = {
+        "wood": 3,
+        "brick": 2,
+        "sheep": 2,
+        "wheat": 1,
+        "ore": 1
+    }  # Total: 9 resources, should slash 4
+    
+    # Slash half (rounded down)
+    player.slash({
+        "wood": 2,
+        "brick": 1,
+        "sheep": 1
+    })  # Slashing 4 resources
+    
+    # Verify remaining resources
+    assert player.resources == {
+        "wood": 1,
+        "brick": 1,
+        "sheep": 1,
+        "wheat": 1,
+        "ore": 1
+    }
+
+def test_slash_multiple_combinations(player):
+    """Test different valid combinations of resource slashing."""
+    # Give player 8 resources
+    player.resources = {
+        "wood": 3,
+        "brick": 2,
+        "sheep": 3
+    }  # Total: 8 resources, should slash 4
+    
+    # Try first valid combination
+    player_resources = player.resources.copy()
+    player.slash({"wood": 2, "brick": 1, "sheep": 1})
+    assert sum(player.resources.values()) == sum(player_resources.values()) - 4
+    
+    # Reset and try different valid combination
+    player.resources = player_resources
+    player.slash({"wood": 1, "brick": 2, "sheep": 1})
+    assert sum(player.resources.values()) == sum(player_resources.values()) - 4 
