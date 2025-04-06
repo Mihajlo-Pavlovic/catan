@@ -199,8 +199,8 @@ class Board:
                     added_edges.add(edge_id)
                     
                     # Add the reverse direction to the set to prevent duplicates
-                    reverse_edge_id = (v2, v1)
-                    added_edges.add(reverse_edge_id)
+                    # reverse_edge_id = (v2, v1)
+                    # added_edges.add(reverse_edge_id)
 
     def get_edge(self, v1: int, v2: int) -> Edge:
         """
