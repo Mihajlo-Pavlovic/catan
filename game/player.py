@@ -88,6 +88,64 @@ class Player:
         if resource_type in self.resources:
             self.resources[resource_type] += amount
 
+
+    def slash(self, resource_to_slash: dict[str, int]):
+        """
+        Remove (discard) specified resources from the player's inventory when a 7 is rolled.
+        
+        According to Catan rules:
+        - Players with more than 7 cards must discard half (rounded down) when a 7 is rolled
+        - Players can choose which cards to discard
+        - The total number of discarded cards must exactly equal half their cards (rounded down)
+        
+        Args:
+            resource_to_slash (dict[str, int]): Dictionary mapping resource types to amounts to discard
+                Example: {"wood": 2, "brick": 1} will discard 2 wood and 1 brick
+        
+        Raises:
+            AssertionError: If any of these conditions are violated:
+                - Player has 7 or fewer resources (shouldn't be slashing)
+                - Invalid resource type specified
+                - Trying to slash more of a resource than player has
+                - Trying to slash a negative amount
+                - Total amount to slash doesn't equal half of player's resources
+        
+        Example:
+            If player has 9 resources:
+                player.slash({"wood": 2, "wheat": 2})  # Discards 4 resources (9//2 = 4)
+            If player has 8 resources:
+                player.slash({"wood": 2, "brick": 2})  # Discards 4 resources (8//2 = 4)
+        """
+        # Calculate required discard amount (half of total resources, rounded down)
+        total_resources = sum(self.resources.values())
+        required_discard = total_resources // 2
+        
+        # Verify player should be discarding (more than 7 cards)
+        assert total_resources > 7, "Cannot slash if player has 7 or fewer resources"
+        
+        # Verify correct total amount being discarded
+        actual_discard = sum(resource_to_slash.values())
+        assert actual_discard == required_discard, \
+            f"Must discard exactly {required_discard} cards, trying to discard {actual_discard} cards"
+        
+        # Validate each resource type and amount
+        for resource_type, amount in resource_to_slash.items():
+            # Verify resource type exists
+            assert resource_type in self.resources, \
+                f"Invalid resource type: {resource_type}"
+            
+            # Verify player has enough of this resource
+            assert self.resources[resource_type] >= amount, \
+                f"Not enough {resource_type}: have {self.resources[resource_type]}, trying to slash {amount}"
+            
+            # Verify non-negative amount
+            assert amount >= 0, \
+                f"Cannot slash negative amount: {amount}"
+        
+        # After all validation passes, perform the resource removal
+        for resource_type, amount in resource_to_slash.items():
+            self.resources[resource_type] -= amount
+
     def print_status(self):
         """
         Display the player's current game status.
