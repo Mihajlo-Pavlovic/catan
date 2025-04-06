@@ -16,16 +16,15 @@ The agent makes decisions based on:
 - Opponent positions (for robber placement)
 """
 
+import random
 from typing import Union, Tuple, List
 from game.game import Game
 from game.player import Player
 from game.board import Vertex, Edge, Vertex_Id
 from game.constants import (
-    DICE_ROLL_PROBABILITIES,  # Probability of each dice roll
     MAX_SETTLEMENTS,          # Maximum number of settlements allowed
     MAX_ROADS,               # Maximum number of roads allowed
     MAX_CITIES,              # Maximum number of cities allowed
-    VERTEX_PROBABILITY_SCORE  # Pre-calculated vertex scores
 )
 
 class SimpleAgent:
@@ -66,13 +65,14 @@ class SimpleAgent:
         # Return list of actions
         actions = []
         # Sort vertices by probability score
-        sorted_vertices = sorted(game.board.vertices.values(), key=lambda x: VERTEX_PROBABILITY_SCORE[x.id], reverse=True)
+        sorted_vertices = sorted(game.board.vertices.keys(), key=lambda x: game.board.vertices[x].probability_score, reverse=True)
         for vertex in sorted_vertices:
-            if vertex.settlement in None:
-                actions.append(("place_settlement", vertex.id))
+            if game.board.vertices[vertex].settlement is None:
+                actions.append(("place_settlement", vertex))
+                # Select random edge connected to the vertex to place the road
+                random_edge = (vertex, random.choice(game.board.vertices[vertex].adjacent_vertices).id)
+                actions.append(("place_road", random_edge))
                 break
-        # Select random edge connected to the vertex to place the road
-        actions.append(("place_road", vertex.id))
         
         return actions
     
@@ -90,13 +90,16 @@ class SimpleAgent:
         """
         actions = []
         # Sort vertices by probability score
-        sorted_vertices = sorted(game.board.vertices.values(), key=lambda x: VERTEX_PROBABILITY_SCORE[x.id], reverse=True)
+        sorted_vertices = sorted(game.board.vertices.keys(), key=lambda x: game.board.vertices[x].probability_score, reverse=True)
         for vertex in sorted_vertices:
-            if vertex.settlement in None:
-                actions.append(("place_settlement", vertex.id))
+            if game.board.vertices[vertex].settlement is None:
+                actions.append(("place_settlement", vertex))
+                # Select random edge connected to the vertex to place the road
+                random_edge = (vertex, random.choice(game.board.vertices[vertex].adjacent_vertices).id)
+                actions.append(("place_road", random_edge))
                 break
-        # Select random edge connected to the vertex to place the road
-        actions.append(("place_road", vertex.id))
+        
+        return actions
         
         
         
@@ -317,66 +320,52 @@ class SimpleAgent:
                     target_player = player
                     max_points = player.victory_points
 
-        if target_player is None:
-            # If no valid target, move robber to desert or any tile
-            # away from our settlements
-            for coord, tile in game.board.tiles.items():
-                if coord != game.board.robber:  # Don't keep robber in same place
-                    # Check if we don't have settlements on this tile
-                    our_settlement_here = False
-                    for vertex in tile.vertices:
-                        if vertex.settlement == self.player:
-                            our_settlement_here = True
-                            break
-                    if not our_settlement_here:
-                        return (coord, None)
-            
-            # If somehow no valid tile found, move to first available tile
-            for coord in game.board.tiles.keys():
-                if coord != game.board.robber:
-                    return (coord, None)
-
-        # Find a tile where target player has settlements/cities
-        best_tile_coord = None
+        # Get all valid tiles (not current robber location and not our settlements)
+        valid_tiles = []
         for coord, tile in game.board.tiles.items():
             if coord == game.board.robber:
-                continue  # Skip current robber location
-                
-            # Check if target player has settlement/city on this tile
-            target_player_here = False
+                continue
+            
             our_settlement_here = False
+            for vertex in tile.vertices:
+                if vertex.settlement == self.player or vertex.city == self.player:
+                    our_settlement_here = True
+                    break
+            
+            if not our_settlement_here:
+                valid_tiles.append(coord)
+
+        if not valid_tiles:  # If no valid tiles found (shouldn't happen in normal game)
+            return (next(coord for coord in game.board.tiles.keys() 
+                    if coord != game.board.robber), None)
+
+        if target_player is None:
+            # If no valid target, move robber to any valid tile
+            return (valid_tiles[0], None)
+
+        # Find best tile to target opponent
+        best_tile_coord = None
+        
+        # First preference: tiles where target player has buildings but we don't
+        for coord in valid_tiles:
+            tile = game.board.tiles[coord]
+            target_player_here = False
             
             for vertex in tile.vertices:
                 if vertex.settlement == target_player or vertex.city == target_player:
                     target_player_here = True
-                elif vertex.settlement == self.player or vertex.city == self.player:
-                    our_settlement_here = True
-                    
-            # Prefer tiles where target player is and we're not
-            if target_player_here and not our_settlement_here:
+                    break
+                
+            if target_player_here:
                 best_tile_coord = coord
                 break
         
-        # If no ideal tile found, use any tile where target player is
+        # If no ideal tile found, use any valid tile
         if best_tile_coord is None:
-            for coord, tile in game.board.tiles.items():
-                if coord == game.board.robber:
-                    continue
-                    
-                for vertex in tile.vertices:
-                    if vertex.settlement == target_player or vertex.city == target_player:
-                        best_tile_coord = coord
-                        break
-                if best_tile_coord:
-                    break
-        
-        # If still no tile found, move to any valid tile
-        if best_tile_coord is None:
-            for coord in game.board.tiles.keys():
-                if coord != game.board.robber:
-                    best_tile_coord = coord
-                    break
+            best_tile_coord = valid_tiles[0]
         
         return (best_tile_coord, target_player)
+    
+       
     
 

@@ -1,5 +1,5 @@
 import random
-from game.constants import MAX_VERTEX_ID, RESOURCE_DISTRIBUTION, NUMBER_TOKENS, CORDS_UNWRAPED, TILE_VERTEX_IDS, VALID_COORDS, VERTEX_NEIGHBORS
+from game.constants import DICE_ROLL_PROBABILITIES, MAX_VERTEX_ID, RESOURCE_DISTRIBUTION, NUMBER_TOKENS, CORDS_UNWRAPED, TILE_VERTEX_IDS, VALID_COORDS, VERTEX_NEIGHBORS
 
 Cord = tuple[int, int]
 Vertex_Id = int
@@ -28,7 +28,7 @@ class Vertex:
         self.city = None  # Player who owns it, or None
         self.adjacent_tiles = []  # List of tile references
         self.adjacent_vertices = []  # Neighboring vertex references
-
+        self.probability_score = 0
 Edge_Id = tuple[Vertex_Id, Vertex_Id]
 class Edge:
     """
@@ -175,6 +175,13 @@ class Board:
                 tile.vertices.append(self.vertices[vertex_id])
                 # Add tile reference to the vertex
                 self.vertices[vertex_id].adjacent_tiles.append(tile)
+        
+        for vertex in self.vertices.values():
+            for tile in vertex.adjacent_tiles:
+                if tile.number is None:
+                    continue
+                score = DICE_ROLL_PROBABILITIES[tile.number]
+                vertex.probability_score += score
 
     def _generate_edges(self):
         """
