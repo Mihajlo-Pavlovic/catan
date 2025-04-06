@@ -293,7 +293,9 @@ class SimpleAgent:
                 return vertex.id
         return None
     
-
+    # ----------------------------------------------------------------------
+    # Robber logic
+    # ----------------------------------------------------------------------
     def handle_robber_move(self, game: Game) -> Tuple[Tuple[int, int], Union[Player, None]]:
         """
         Determine robber placement and theft target.
