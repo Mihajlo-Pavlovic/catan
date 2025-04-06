@@ -17,7 +17,7 @@ The agent makes decisions based on:
 """
 
 import random
-from typing import Union, Tuple, List
+from typing import Dict, Union, Tuple, List
 from game.game import Game
 from game.player import Player
 from game.board import Vertex, Edge, Vertex_Id
@@ -67,7 +67,7 @@ class SimpleAgent:
         # Sort vertices by probability score
         sorted_vertices = sorted(game.board.vertices.keys(), key=lambda x: game.board.vertices[x].probability_score, reverse=True)
         for vertex in sorted_vertices:
-            if game.board.vertices[vertex].settlement is None:
+            if game.board.vertices[vertex].settlement is None and all(adj.settlement is None for adj in game.board.vertices[vertex].adjacent_vertices):
                 actions.append(("place_settlement", vertex))
                 # Select random edge connected to the vertex to place the road
                 random_edge = (vertex, random.choice(game.board.vertices[vertex].adjacent_vertices).id)
@@ -92,7 +92,7 @@ class SimpleAgent:
         # Sort vertices by probability score
         sorted_vertices = sorted(game.board.vertices.keys(), key=lambda x: game.board.vertices[x].probability_score, reverse=True)
         for vertex in sorted_vertices:
-            if game.board.vertices[vertex].settlement is None:
+            if game.board.vertices[vertex].settlement is None and all(adj.settlement is None for adj in game.board.vertices[vertex].adjacent_vertices):
                 actions.append(("place_settlement", vertex))
                 # Select random edge connected to the vertex to place the road
                 random_edge = (vertex, random.choice(game.board.vertices[vertex].adjacent_vertices).id)
@@ -366,6 +366,41 @@ class SimpleAgent:
         
         return (best_tile_coord, target_player)
     
-       
-    
+    # ----------------------------------------------------------------------
+    # Slash logic
+    # ----------------------------------------------------------------------
+    # TODO Cover with tests
+    def handle_slash(self) -> Dict[str, int]:
+        """
+        Determine which resources to discard randomly when the player has more than 7 cards.
+
+        Returns:
+            Dict[str, int]: A mapping of resource types to the number of cards to discard.
+        """
+        discard_dict = {}
+        total_resources = sum(self.player.resources.values())
+
+
+        # Calculate how many cards to discard (half, rounded down)
+        required_discard = total_resources // 2
+
+        # Convert resources to a list where each entry corresponds to one card
+        # e.g. if we have 3 wood, we have ["wood", "wood", "wood"] in the list
+        resource_cards = []
+        for resource_type, amount in self.player.resources.items():
+            resource_cards.extend([resource_type] * amount)
+
+        # Randomly choose which cards to discard
+        # We pop from resource_cards to form the discard set
+        random.shuffle(resource_cards)
+        cards_to_discard = resource_cards[:required_discard]
+
+        # Count how many of each resource we selected
+        for card in cards_to_discard:
+            discard_dict[card] = discard_dict.get(card, 0) + 1
+
+        return discard_dict
+        
+        
+        
 

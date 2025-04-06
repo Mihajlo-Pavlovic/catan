@@ -1,7 +1,7 @@
 #game/game.py
 import random
-from game.constants import ANY, MAX_SETTLEMENTS,MAX_CITIES,MAX_ROADS, PORT_RESOURCE_VERTEX_IDS_DICT, RESOURCE_TYPES
-from game.board import Board, Edge, Vertex, Vertex_Id, Edge_Id
+from game.constants import ANY, MAX_SETTLEMENTS, MAX_CITIES, MAX_ROADS, PORT_RESOURCE_VERTEX_IDS_DICT, RESOURCE_TYPES
+from game.board import Board, Edge, Vertex
 from game.player import Player
 
 class Game:
@@ -29,7 +29,7 @@ class Game:
         #for player in self.players:
 
 
-    def _place_settlement(self, player: Player, vertex: Vertex):
+    def _place_settlement(self, player: Player, vertex: Vertex, initial_placement: bool = False):
         """
         Place a settlement for a player at the specified vertex.
         
@@ -55,23 +55,25 @@ class Game:
       # For each adjacent vertex check if there is a settlement, if yes, raise an error
         for adjacent_vertex in vertex.adjacent_vertices:
           if adjacent_vertex.settlement is not None:
-            raise ValueError("Player does not have a settlement adjacent to this vertex")
+            raise ValueError("There is settlement on adjacent vertex")
         # Check if player has enough resources
         if len(player.settlements) >= MAX_SETTLEMENTS:
           raise ValueError("Player has too many settlements")
-        if player.resources["wood"] < 1 or player.resources["brick"] < 1 or player.resources["sheep"] < 1 or player.resources["wheat"] < 1:
-          raise ValueError("Player does not have enough resources to place a settlement")
+        if not initial_placement:
+          if player.resources["wood"] < 1 or player.resources["brick"] < 1 or player.resources["sheep"] < 1 or player.resources["wheat"] < 1:
+            raise ValueError("Player does not have enough resources to place a settlement")
         # Place settlement
         vertex.settlement = player
         player.settlements.append(vertex)
         # Remove resources from player
-        player.resources["wood"] -= 1
-        player.resources["brick"] -= 1
-        player.resources["sheep"] -= 1
-        player.resources["wheat"] -= 1
+        if not initial_placement:
+          player.resources["wood"] -= 1
+          player.resources["brick"] -= 1
+          player.resources["sheep"] -= 1
+          player.resources["wheat"] -= 1
         player.victory_points += 1
 
-    def _place_road(self, player: Player, edge : Edge):
+    def _place_road(self, player: Player, edge : Edge, initial_placement: bool = False):
         """
         Place a road for a player at the specified edge.
         
@@ -83,19 +85,20 @@ class Game:
         
         Args:
             player (Player): The player placing the road
-            edge_id (Edge_Id): The edge where the road will be placed
+            edge (Edge): The edge where the road will be placed
             
         Raises:
             AssertionError: If the edge doesn't exist on the board
             ValueError: If placement violates any game rules
         """
-        assert edge.id in self.board.edges, f"Edge {edge} does not exist on the board"
+        assert edge.vertices in self.board.edges, f"Edge {edge} does not exist on the board"
         # Check if edge is already occupied
         if edge.road is not None:
           raise ValueError("Edge already has a road")
         # Check if player has enough resources
-        if player.resources["wood"] < 1 or player.resources["brick"] < 1:
-          raise ValueError("Player does not have enough resources to place a road")
+        if not initial_placement:
+          if player.resources["wood"] < 1 or player.resources["brick"] < 1:
+            raise ValueError("Player does not have enough resources to place a road")
         # Check if player has enough roads
         if len(player.roads) >= MAX_ROADS:
           raise ValueError("Player has too many roads")
@@ -103,8 +106,9 @@ class Game:
         edge.road = player
         player.roads.append(edge)
         # Remove resources from player
-        player.resources["wood"] -= 1
-        player.resources["brick"] -= 1
+        if not initial_placement: 
+          player.resources["wood"] -= 1
+          player.resources["brick"] -= 1
 
     def _place_city(self, player: Player, vertex: Vertex):
         """
@@ -261,6 +265,7 @@ class Game:
         raise ValueError("Cannot steal from yourself")
       # Find playerThatLosesResource resource that are not 0
       resourcesThatCanBeStolen = [resource for resource in playerThatLosesResource.resources if playerThatLosesResource.resources[resource] > 0]
+      assert len(resourcesThatCanBeStolen) > 0, "No resources to steal"
       resourceToSteal = random.choice(resourcesThatCanBeStolen)
       playerThatSteals.resources[resourceToSteal] += 1
       playerThatLosesResource.resources[resourceToSteal] -= 1
