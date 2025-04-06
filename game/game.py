@@ -274,16 +274,9 @@ class Game:
                 trade_rate = 2
                 break
             # Check for 3:1 port (any resource)
-            elif settlement.id in PORT_RESOURCE_VERTEX_IDS_DICT["any"]:
+            elif settlement.id in PORT_RESOURCE_VERTEX_IDS_DICT[ANY]:
                 trade_rate = 3
 
-        # Also check cities for port access
-        for city in player.cities:
-            if city.id in PORT_RESOURCE_VERTEX_IDS_DICT[resource_type_to_give]:
-                trade_rate = 2
-                break
-            elif city.id in PORT_RESOURCE_VERTEX_IDS_DICT["any"]:
-                trade_rate = min(trade_rate, 3)
 
         # Calculate total cost
         total_cost = amount_to_give * trade_rate
