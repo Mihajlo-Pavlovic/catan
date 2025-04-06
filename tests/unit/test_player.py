@@ -141,10 +141,10 @@ def test_slash_invalid_resource(player):
 
 def test_slash_insufficient_specific_resource(player):
     """Test slashing fails when trying to slash more of a resource than available."""
-    # Give player 8 resources
+    # Give player 10 resources
     player.resources = {
         "wood": 4,
-        "brick": 2,
+        "brick": 4,
         "sheep": 2
     }
     
@@ -153,15 +153,15 @@ def test_slash_insufficient_specific_resource(player):
 
 def test_slash_negative_amount(player):
     """Test slashing fails when trying to slash negative amount."""
-    # Give player 8 resources
+    # Give player 10 resources
     player.resources = {
         "wood": 4,
-        "brick": 2,
+        "brick": 4,
         "sheep": 2
     }
     
     with pytest.raises(AssertionError, match="Cannot slash negative amount"):
-        player.slash({"wood": -1})
+        player.slash({"brick": 4, "sheep": 2, "wood": -1})
 
 def test_slash_odd_number_resources(player):
     """Test slashing with odd number of total resources."""
@@ -202,9 +202,9 @@ def test_slash_multiple_combinations(player):
     # Try first valid combination
     player_resources = player.resources.copy()
     player.slash({"wood": 2, "brick": 1, "sheep": 1})
-    assert sum(player.resources.values()) == sum(player_resources.values()) - 4
+    assert player.resources['wood'] == 1 and player.resources['brick'] == 1 and player.resources['sheep'] == 2 and sum(player.resources.values()) == 4
     
     # Reset and try different valid combination
     player.resources = player_resources
     player.slash({"wood": 1, "brick": 2, "sheep": 1})
-    assert sum(player.resources.values()) == sum(player_resources.values()) - 4 
+    assert player.resources['wood'] == 2 and player.resources['brick'] == 0 and player.resources['sheep'] == 2 and sum(player.resources.values()) == 4
