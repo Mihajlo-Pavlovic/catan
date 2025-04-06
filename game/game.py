@@ -1,6 +1,6 @@
 #game/game.py
 import random
-from game.constants import MAX_SETTLEMENTS,MAX_CITIES,MAX_ROADS
+from game.constants import ANY, MAX_SETTLEMENTS,MAX_CITIES,MAX_ROADS, PORT_RESOURCE_VERTEX_IDS_DICT, RESOURCE_TYPES
 from game.board import Board, Edge, Vertex, Vertex_Id, Edge_Id
 from game.player import Player
 
@@ -238,8 +238,65 @@ class Game:
       playerThatSteals.resources[resourceToSteal] += 1
       playerThatLosesResource.resources[resourceToSteal] -= 1
 
+    def _trade_with_bank(self, player: Player, resource_type_to_receive: str, amount_to_receive: int, 
+                         resource_type_to_give: str, amount_to_give: int):
+        """
+        Trade resources with the bank at standard (4:1) or port rates (3:1 or 2:1).
+        
+        Trading rules:
+        - Standard rate is 4:1 (give 4 of one resource to receive 1 of another)
+        - Port rates can be 3:1 (any resource) or 2:1 (specific resource)
+        - Player must have a settlement/city on a port to use its trade rate
+        - Player must have enough resources for the trade
+        
+        Args:
+            player (Player): The player making the trade
+            resource_type_to_receive (str): The type of resource to receive from bank
+            amount_to_receive (int): The amount of resource to receive
+            resource_type_to_give (str): The type of resource to give to bank
+            amount_to_give (int): The amount of resource to give
+            
+        Raises:
+            AssertionError: If resource types are invalid or amounts are not positive
+            ValueError: If player doesn't have enough resources for the trade
+        """
+        # Validate resource types and amounts
+        assert resource_type_to_receive in RESOURCE_TYPES, f"Invalid resource type to receive: {resource_type_to_receive}"
+        assert resource_type_to_give in RESOURCE_TYPES, f"Invalid resource type to give: {resource_type_to_give}"
+        assert amount_to_receive > 0, "Amount to receive must be greater than 0"
+        assert amount_to_give > 0, "Amount to give must be greater than 0"
 
+        # Determine best available trade rate
+        trade_rate = 4  # Standard rate
+        for settlement in player.settlements:
+            # Check for 2:1 port for specific resource
+            if settlement.id in PORT_RESOURCE_VERTEX_IDS_DICT[resource_type_to_give]:
+                trade_rate = 2
+                break
+            # Check for 3:1 port (any resource)
+            elif settlement.id in PORT_RESOURCE_VERTEX_IDS_DICT["any"]:
+                trade_rate = 3
 
+        # Also check cities for port access
+        for city in player.cities:
+            if city.id in PORT_RESOURCE_VERTEX_IDS_DICT[resource_type_to_give]:
+                trade_rate = 2
+                break
+            elif city.id in PORT_RESOURCE_VERTEX_IDS_DICT["any"]:
+                trade_rate = min(trade_rate, 3)
+
+        # Calculate total cost
+        total_cost = amount_to_give * trade_rate
+
+        # Verify player has enough resources
+        if player.resources[resource_type_to_give] < total_cost:
+            raise ValueError(f"Player needs {total_cost} {resource_type_to_give} but only has {player.resources[resource_type_to_give]}")
+        
+        # Execute trade
+        player.resources[resource_type_to_give] -= total_cost
+        player.resources[resource_type_to_receive] += amount_to_receive
+      
+      
       
       
 

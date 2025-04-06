@@ -6,7 +6,7 @@ VALID_COORDS = [
     (-2, 2), (-1, 2), (0, 2),
 ]
 
-RESOURCE_TYPES = ["wood", "brick", "sheep", "wheat", "ore", "desert"]
+RESOURCE_TYPES = ["wood", "brick", "sheep", "wheat", "ore"]
 
 RESOURCE_DISTRIBUTION = {
     "wood": 4,
@@ -107,3 +107,36 @@ MAX_SETTLEMENTS = 5
 MAX_ROADS = 15
 MAX_CITIES = 4
 
+PORT_TYPES = ["wood", "brick", "sheep", "wheat", "ore", "any"]
+
+PORT_VERTEX_IDS = {
+  0: "wood",
+  1: "wood",
+  6: "wheat",
+  7: "wheat",
+  12: "ore",
+  22: "ore",
+  35: "any",
+  36: "any",
+  45: "sheep",
+  46: "sheep",
+  50: "any",
+  51: "any",
+  48: "any",
+  49: "any",
+  26: "brick",
+  40: "brick",
+  14: "wood",
+  17: "wood",
+}
+
+PORT_RESOURCE_VERTEX_IDS_DICT = {
+  "wood": [0, 1, 14, 17],
+  "brick": [26, 40],
+  "sheep": [45, 46],
+  "wheat": [6, 7],
+  "ore": [12, 22],
+  "any": [35, 36, 48, 49, 50, 51]
+}
+
+ANY = "any"
