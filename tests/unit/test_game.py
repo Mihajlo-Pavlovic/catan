@@ -3,7 +3,7 @@ import pytest
 from game.game import Game
 from game.player import Player
 from game.board import Board
-from game.constants import MAX_SETTLEMENTS, TILE_VERTEX_IDS, VALID_COORDS
+from game.constants import MAX_SETTLEMENTS, TILE_VERTEX_IDS, VALID_COORDS, PORT_RESOURCE_VERTEX_IDS_DICT
 
 @pytest.fixture
 def board():
@@ -183,3 +183,137 @@ def test_resource_deduction_after_building(game, players):
     # Check resources were deducted
     for resource in ["wood", "brick", "sheep", "wheat"]:
         assert player.resources[resource] == initial_resources[resource] - 1 
+
+def test_trade_with_bank_standard_rate(game, players):
+    """Test trading with bank at standard 4:1 rate."""
+    player = players[0]
+    # Give player resources
+    player.resources["wood"] = 4
+    
+    # Trade 4 wood for 1 brick
+    game._trade_with_bank(
+        player=player,
+        resource_type_to_receive="brick",
+        amount_to_receive=1,
+        resource_type_to_give="wood",
+        amount_to_give=1
+    )
+    
+    # Check resources were properly exchanged
+    assert player.resources["wood"] == 0
+    assert player.resources["brick"] == 1
+
+def test_trade_with_bank_port_2_1(game, players):
+    """Test trading with bank at 2:1 rate with specific resource port."""
+    player = players[0]
+    # Give player resources and port access
+    player.resources["wood"] = 2
+    vertex = game.board.vertices[PORT_RESOURCE_VERTEX_IDS_DICT["wood"][0]]
+    vertex.settlement = player
+    player.settlements.append(vertex)
+    
+    # Trade 2 wood for 1 brick using 2:1 port
+    game._trade_with_bank(
+        player=player,
+        resource_type_to_receive="brick",
+        amount_to_receive=1,
+        resource_type_to_give="wood",
+        amount_to_give=1
+    )
+    
+    # Check resources were properly exchanged
+    assert player.resources["wood"] == 0
+    assert player.resources["brick"] == 1
+
+def test_trade_with_bank_port_3_1(game, players):
+    """Test trading with bank at 3:1 rate with general port."""
+    player = players[0]
+    # Give player resources and port access
+    player.resources["wood"] = 3
+    vertex = game.board.vertices[PORT_RESOURCE_VERTEX_IDS_DICT["any"][0]]
+    vertex.settlement = player
+    player.settlements.append(vertex)
+    
+    # Trade 3 wood for 1 brick using 3:1 port
+    game._trade_with_bank(
+        player=player,
+        resource_type_to_receive="brick",
+        amount_to_receive=1,
+        resource_type_to_give="wood",
+        amount_to_give=1
+    )
+    
+    # Check resources were properly exchanged
+    assert player.resources["wood"] == 0
+    assert player.resources["brick"] == 1
+
+def test_trade_with_bank_insufficient_resources(game, players):
+    """Test that trading fails when player has insufficient resources."""
+    player = players[0]
+    player.resources["wood"] = 3  # Not enough for 4:1 trade
+    
+    with pytest.raises(ValueError, match="Player needs 4 wood but only has 3"):
+        game._trade_with_bank(
+            player=player,
+            resource_type_to_receive="brick",
+            amount_to_receive=1,
+            resource_type_to_give="wood",
+            amount_to_give=1
+        )
+
+def test_trade_with_bank_invalid_resource(game, players):
+    """Test that trading fails with invalid resource types."""
+    player = players[0]
+    player.resources["wood"] = 4
+    
+    with pytest.raises(AssertionError, match="Invalid resource type to receive"):
+        game._trade_with_bank(
+            player=player,
+            resource_type_to_receive="invalid",
+            amount_to_receive=1,
+            resource_type_to_give="wood",
+            amount_to_give=1
+        )
+
+def test_trade_with_bank_invalid_amounts(game, players):
+    """Test that trading fails with invalid amounts."""
+    player = players[0]
+    player.resources["wood"] = 4
+    
+    with pytest.raises(AssertionError, match="Amount to receive must be greater than 0"):
+        game._trade_with_bank(
+            player=player,
+            resource_type_to_receive="brick",
+            amount_to_receive=0,
+            resource_type_to_give="wood",
+            amount_to_give=1
+        )
+
+def test_trade_with_bank_best_rate_selection(game, players):
+    """Test that bank trading uses the best available rate."""
+    player = players[0]
+    # Give player resources and both 3:1 and 2:1 port access
+    player.resources["wood"] = 4
+    
+    # Add 3:1 port access
+    vertex_3_1 = game.board.vertices[PORT_RESOURCE_VERTEX_IDS_DICT["any"][0]]
+    vertex_3_1.settlement = player
+    player.settlements.append(vertex_3_1)
+    
+    # Add 2:1 wood port access
+    vertex_2_1 = game.board.vertices[PORT_RESOURCE_VERTEX_IDS_DICT["wood"][0]]
+    vertex_2_1.settlement = player
+    player.settlements.append(vertex_2_1)
+    
+    # Trade wood for brick - should use 2:1 rate
+    game._trade_with_bank(
+        player=player,
+        resource_type_to_receive="brick",
+        amount_to_receive=1,
+        resource_type_to_give="wood",
+        amount_to_give=1
+    )
+    
+    # Check that only 2 wood were used (2:1 rate)
+    assert player.resources["wood"] == 2
+    assert player.resources["brick"] == 1 
