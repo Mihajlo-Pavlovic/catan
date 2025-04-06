@@ -317,3 +317,95 @@ def test_trade_with_bank_best_rate_selection(game, players):
     # Check that only 2 wood were used (2:1 rate)
     assert player.resources["wood"] == 2
     assert player.resources["brick"] == 1 
+
+def test_who_to_slash_no_players(game, players):
+    """Test that no players are selected when all have 7 or fewer resources."""
+    # Give players 7 or fewer resources
+    for player in players:
+        player.resources = {
+            "wood": 2,
+            "brick": 1,
+            "sheep": 1,
+            "wheat": 2,
+            "ore": 1
+        }  # Total: 7 resources
+    
+    players_to_slash = game._who_to_slash()
+    assert len(players_to_slash) == 0
+
+def test_who_to_slash_one_player(game, players):
+    """Test that only players with more than 7 resources are selected."""
+    # Give one player more than 7 resources
+    players[0].resources = {
+        "wood": 3,
+        "brick": 2,
+        "sheep": 2,
+        "wheat": 2,
+        "ore": 1
+    }  # Total: 10 resources
+    
+    # Give other players fewer resources
+    for player in players[1:]:
+        player.resources = {
+            "wood": 1,
+            "brick": 1,
+            "sheep": 1,
+            "wheat": 1,
+            "ore": 1
+        }  # Total: 5 resources
+    
+    players_to_slash = game._who_to_slash()
+    assert len(players_to_slash) == 1
+    assert players_to_slash[0] == players[0]
+
+def test_who_to_slash_multiple_players(game, players):
+    """Test that multiple players with more than 7 resources are selected."""
+    # Set up resource counts for each player
+    resource_counts = [
+        {"wood": 3, "brick": 2, "sheep": 2, "wheat": 2, "ore": 1},  # 10 resources
+        {"wood": 4, "brick": 2, "sheep": 1, "wheat": 1, "ore": 0},  # 8 resources
+        {"wood": 1, "brick": 1, "sheep": 1, "wheat": 1, "ore": 1},  # 5 resources
+        {"wood": 2, "brick": 2, "sheep": 2, "wheat": 2, "ore": 2}   # 10 resources
+    ]
+    
+    # Assign resources to players
+    for player, resources in zip(players, resource_counts):
+        player.resources = resources.copy()
+    
+    players_to_slash = game._who_to_slash()
+    assert len(players_to_slash) == 3
+    assert players[0] in players_to_slash  # 10 resources
+    assert players[1] in players_to_slash  # 8 resources
+    assert players[3] in players_to_slash  # 10 resources
+    assert players[2] not in players_to_slash  # 5 resources
+
+def test_who_to_slash_exact_seven(game, players):
+    """Test that players with exactly 7 resources are not selected."""
+    # Give player exactly 7 resources
+    players[0].resources = {
+        "wood": 2,
+        "brick": 1,
+        "sheep": 1,
+        "wheat": 2,
+        "ore": 1
+    }  # Total: 7 resources
+    
+    players_to_slash = game._who_to_slash()
+    assert len(players_to_slash) == 0
+    assert players[0] not in players_to_slash
+
+def test_who_to_slash_all_players(game, players):
+    """Test that all players with more than 7 resources are selected."""
+    # Give all players more than 7 resources
+    for player in players:
+        player.resources = {
+            "wood": 2,
+            "brick": 2,
+            "sheep": 2,
+            "wheat": 2,
+            "ore": 2
+        }  # Total: 10 resources
+    
+    players_to_slash = game._who_to_slash()
+    assert len(players_to_slash) == len(players)
+    assert all(player in players_to_slash for player in players) 
