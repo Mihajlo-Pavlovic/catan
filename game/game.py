@@ -75,6 +75,10 @@ class Game:
           player.resources["wheat"] -= 1
         player.victory_points += 1
 
+
+        for player in self.players:
+            self._update_longest_road(player)
+
     def _place_road(self, player: Player, edge: Edge, initial_placement: bool = False):
         """
         Place a road for a player at the specified edge.
