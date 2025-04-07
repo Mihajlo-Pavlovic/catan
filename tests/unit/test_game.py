@@ -541,12 +541,292 @@ def test_update_longest_road(game, players):
     assert player1.victory_points == 0  # Lost 2 points
     assert player2.victory_points == 2  # Gained 2 points 
 
-# TODO: Add tests for the case where the longest road is less than 5.
-# TODO: Add tests for the case where the longest road is more than 5.
-# TODO: Add tests for the case where the longest road is exactly 5.
-# TODO: Add test for circular roads
-# TODO: Add test for circular road with tail
-# TODO: Add test for circular road with multiple tails
-# TODO: Add test for when there is lone road
-# TODO: Add test for case when longest road is blocked by setlment of another player
+def test_longest_road_less_than_five(game, players):
+    """Test that no victory points are awarded for roads less than 5 segments."""
+    player = players[0]
+    
+    # Create a path of 4 connected roads (less than minimum 5 for points)
+    edges = list(game.board.edges.values())
+    road_edges = []
+    current_vertex_id = edges[0].vertices[0]
+    
+    # Find 4 connected edges
+    for edge in edges:
+        if current_vertex_id in edge.vertices and edge not in road_edges:
+            road_edges.append(edge)
+            # Get the other vertex to continue the path
+            v1_id, v2_id = edge.vertices
+            current_vertex_id = v2_id if v1_id == current_vertex_id else v1_id
+            if len(road_edges) == 4:
+                break
+    
+    # Place the roads
+    for edge in road_edges:
+        game._place_road(player, edge, initial_placement=True)
+    
+    # Update longest road
+    game._update_longest_road(player)
+    
+    # Verify no victory points were awarded
+    assert player.victory_points == 0
+    assert game.longest_road == 4
+
+def test_longest_road_exactly_five(game, players):
+    """Test that victory points are awarded for roads exactly 5 segments long."""
+    player = players[0]
+    
+    # Create a path of exactly 5 connected roads
+    edges = list(game.board.edges.values())
+    road_edges = []
+    current_vertex_id = edges[0].vertices[0]
+    
+    # Find 5 connected edges
+    for edge in edges:
+        if current_vertex_id in edge.vertices and edge not in road_edges:
+            road_edges.append(edge)
+            # Get the other vertex to continue the path
+            v1_id, v2_id = edge.vertices
+            current_vertex_id = v2_id if v1_id == current_vertex_id else v1_id
+            if len(road_edges) == 5:
+                break
+    
+    # Place the roads
+    for edge in road_edges:
+        game._place_road(player, edge, initial_placement=True)
+    
+    # Verify victory points were awarded
+    assert player.victory_points == 2  # Should get 2 points for longest road
+    assert game.longest_road == 5
+    assert game.longest_road_player == player
+
+def test_longest_road_more_than_five(game, players):
+    """Test that victory points are awarded for roads longer than 5 segments."""
+    player1, player2 = players[0], players[1]
+    
+    # First give player1 a 5-segment road and the longest road status)
+    road_edges = [Edge(0, 1), Edge(1, 2), Edge(2, 3), Edge(3, 4), Edge(4, 5)]
+    
+    # Place the roads for player1
+    for edge in road_edges:
+        game._place_road(player1, edge, initial_placement=True)
+    
+    game._update_longest_road(player1)
+    assert player1.victory_points == 2
+    assert game.longest_road == 5
+    
+    # Now give player2 a longer (7-segment) road
+    road_edges = [Edge(38, 39), Edge(38, 42), Edge(41, 42), Edge(41, 44), Edge(43, 44), Edge(43, 46), Edge(46, 52)]
+    
+    # Place the roads for player2
+    for edge in road_edges:
+        game._place_road(player2, edge, initial_placement=True)
+    
+    
+    # Verify longest road status transferred to player2
+    assert player1.victory_points == 0  # Lost the points
+    assert player2.victory_points == 2  # Gained the points
+    assert game.longest_road == 7
+    assert game.longest_road_player == player2
+
+def test_longest_road_tracking(game, players):
+    """Test that longest road length is tracked correctly regardless of length."""
+    player1, player2 = players[0], players[1]
+    
+    # Build a 3-segment road with player1
+    road_edges = [Edge(0, 1), Edge(1, 2), Edge(2, 3)]
+    # Place the roads for player1
+    for edge in road_edges:
+        game._place_road(player1, edge, initial_placement=True)
+    
+    game._update_longest_road(player1)
+    
+    # Verify tracking but no points awarded
+    assert game.longest_road == 3
+    assert game.longest_road_player == None
+    assert player1.victory_points == 0  # No points for road < 5
+    
+    # Build a 4-segment road with player2
+    road_edges = [Edge(38, 39), Edge(38, 42), Edge(41, 42), Edge(41, 44)]
+    
+    # Place the roads for player2
+    for edge in road_edges:
+        game._place_road(player2, edge, initial_placement=True)
+    
+    game._update_longest_road(player2)
+    
+    # Verify tracking updated but still no points
+    assert game.longest_road == 4
+    assert game.longest_road_player == None
+    assert player1.victory_points == 0
+    assert player2.victory_points == 0
+
+def test_circular_road(game, players):
+    """Test that a circular road's length is calculated correctly."""
+    player = players[0]
+    
+    edges = [
+        Edge(0, 1),
+        Edge(1, 2),
+        Edge(2, 3),
+        Edge(3, 4),
+        Edge(4, 5),
+        Edge(0, 5)
+    ]
+    
+    # Place the roads to form the circle
+    for edge in edges:
+        game._place_road(player, edge, initial_placement=True)
+    
+    # Calculate longest road
+    length = game._calculate_player_longest_road(player)
+    
+    # Verify the length is correct (should be 4 for a simple circle)
+    assert length == 6
+    assert game.longest_road == 6
+    assert game.longest_road_player == player
+    assert player.victory_points == 2
+
+def test_circular_road_with_tail(game, players):
+    """Test that a circular road with a tail is calculated correctly."""
+    player = players[0]
+    
+
+    edges = [
+        Edge(0, 1),
+        Edge(1, 2),
+        Edge(2, 3),
+        Edge(3, 4),
+        Edge(4, 5),
+        Edge(0, 5),
+        Edge(5, 14)
+    ]
+    
+    # Place all roads
+    for edge in edges:
+        game._place_road(player, edge, initial_placement=True)
+    
+    # Calculate longest road
+    length = game._calculate_player_longest_road(player)
+    
+    # Verify the length is correct (should be 6: circle + tail)
+    assert length == 7
+    assert game.longest_road == 7
+    assert game.longest_road_player == player
+    assert player.victory_points == 2  # Points awarded as length > 5
+
+def test_circular_road_with_multiple_tails(game, players):
+    """Test that a circular road with multiple tails is calculated correctly."""
+    player = players[0]
+    
+
+    edges = [
+        Edge(0, 1),
+        Edge(1, 2),
+        Edge(2, 3),
+        Edge(3, 4),
+        Edge(4, 5),
+        Edge(0, 5),
+        Edge(5, 14),
+        Edge(2, 6),
+        Edge(6, 7)
+    ]
+    
+    # Place all roads
+    for edge in edges:
+        game._place_road(player, edge, initial_placement=True)
+    
+    # Calculate longest road
+    length = game._calculate_player_longest_road(player)
+    
+    # Verify the length is correct
+    assert length == 8
+    assert game.longest_road == 8
+    assert game.longest_road_player == player
+    assert player.victory_points == 2
+
+def test_multiple_circles_with_shared_edge(game, players):
+    """Test that multiple connected circles are calculated correctly."""
+    player = players[0]
+    
+    edges = [
+        Edge(0, 1),
+        Edge(1, 2),
+        Edge(2, 3),
+        Edge(3, 4),
+        Edge(4, 5),
+        Edge(0, 5),
+        Edge(5, 14),
+        Edge(2, 6),
+        Edge(6, 7),
+        Edge(7, 8),
+        Edge(8, 9),
+        Edge(3, 9)
+    ]   
+    
+    # Place all roads
+    for edge in edges:
+        game._place_road(player, edge, initial_placement=True)
+    
+    # Calculate longest road
+    length = game._calculate_player_longest_road(player)
+    
+    # Verify the length is correct
+    # Should find the longest path through both circles
+    assert length == 11 # The longest path through both circles
+    assert game.longest_road == 11
+    assert game.longest_road_player == player
+    assert player.victory_points == 2  # Points awarded as length = 5
+
+def test_longest_road_blocked_by_settlement(game, players):
+    """Test that settlements from other players block road connections."""
+    player1, player2 = players[0], players[1]
+    
+    # Create a path of 7 connected edges for player1
+    edges = [
+        Edge(0, 1),
+        Edge(1, 2),
+        Edge(2, 3),
+        Edge(3, 4),
+        Edge(4, 5),
+        Edge(5, 14),
+        Edge(14, 17),
+        Edge(17, 28)
+    ]
+    
+    # Place the roads for player1
+    for edge in edges:
+        game._place_road(player1, edge, initial_placement=True)
+    
+    # Verify initial longest road
+    game._update_longest_road(player1)
+    assert game.longest_road == 8
+    assert game.longest_road_player == player1
+    assert player1.victory_points == 2
+    
+    # Place player2's settlement in the middle of player1's road (at vertex 4)
+    middle_vertex = game.board.vertices[4]
+    middle_vertex.settlement = player2
+    player2.settlements.append(middle_vertex)
+    
+    # Recalculate longest road
+    game._update_longest_road(player1)
+    
+    # The longest segment should be 4 edges
+    assert game._calculate_player_longest_road(player1) == 4
+    assert game.longest_road == 4
+    assert game.longest_road_player == None  # Lost longest road status
+    assert player1.victory_points == 0  # Lost points because longest road is now < 5
+    
+    # Verify that placing another settlement doesn't change the calculation
+    vertex = game.board.vertices[44]
+    vertex.settlement = player2
+    player2.settlements.append(vertex)
+    
+    game._update_longest_road(player1)
+    assert game._calculate_player_longest_road(player1) == 4  # Now the longest segment is 4
+    assert game.longest_road == 4
+    assert game.longest_road_player == None
+    assert player1.victory_points == 0
+
+
 # TODO: Add test to confirm longest road needs to be connected

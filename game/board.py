@@ -29,6 +29,16 @@ class Vertex:
         self.adjacent_tiles = []  # List of tile references
         self.adjacent_vertices = []  # Neighboring vertex references
         self.probability_score = 0
+
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the vertex.
+
+        Returns:
+            str: A string showing the vertex id
+        """
+        return f"Vertex({self.id})"
+
 Edge_Id = tuple[Vertex_Id, Vertex_Id]
 class Edge:
     """
@@ -51,6 +61,15 @@ class Edge:
         self.vertices = (v1_id, v2_id)  # Create a tuple directly
         self.road = None
 
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the edge.
+
+        Returns:
+            str: A string showing the two vertices connected by the edge
+        """
+        return f"Edge({self.vertices[0]}, {self.vertices[1]})"
+    
 
 class Tile:
     """

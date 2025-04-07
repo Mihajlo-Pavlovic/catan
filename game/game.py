@@ -153,19 +153,23 @@ class Game:
     def _update_longest_road(self, player: Player):
         """
         Recalculate the longest road length for 'player' and update game state if it exceeds the current record.
-        A simple approach is a DFS to find the maximum path length in the graph of edges the player owns.
+        Always tracks the longest road length, but only awards victory points for 5 or more segments.
         """
         longest_road_length = self._calculate_player_longest_road(player)
-        print(longest_road_length, self.longest_road)
+        
+        print(self.longest_road, self.longest_road_player)
         if longest_road_length > self.longest_road:
           self.longest_road = longest_road_length
-          old_longest_road_player = self.longest_road_player
-          self.longest_road_player = player
-          if self.longest_road > 4:
-            old_longest_road_player.victory_points -= 2
+          if longest_road_length >= 5:
             player.victory_points += 2
-            
-            
+            if self.longest_road_player is not None:
+              self.longest_road_player.victory_points -= 2
+            self.longest_road_player = player
+        elif player is self.longest_road_player and longest_road_length < self.longest_road:
+          if longest_road_length < 5:
+            player.victory_points -= 2
+            self.longest_road_player = None
+          self.longest_road = longest_road_length
 
 
     def _calculate_player_longest_road(self, player: Player) -> int:
@@ -173,8 +177,8 @@ class Game:
         Returns the length of the longest continuous road (path) owned by 'player'.
         For each road edge, we consider it an undirected connection between the two vertices.
         We'll do a DFS for each possible starting vertex, tracking used edges to avoid reuse.
+        Opponent settlements act as breaking points, creating separate road segments.
         """
-
         from collections import defaultdict
         
         # 1. Build adjacency map of the player's road network:
@@ -185,26 +189,36 @@ class Game:
             adjacency[v1_id].append(v2_id)
             adjacency[v2_id].append(v1_id)
         
-        # 2. DFS to find the longest path. In Catan, we can't reuse an edge in the same path.
-        #    We'll keep track of 'visited edges' so we don't double count them.
-        def dfs(current_vertex_id, visited_edges):
+        # 2. DFS to find the longest path, stopping at opponent settlements
+        def dfs(current_vertex_id, visited_edges, visited_vertices):
+            # Stop if we hit an opponent's settlement (but count the path up to here)
+            if (current_vertex_id in visited_vertices or
+                (self.board.vertices[current_vertex_id].settlement is not None and 
+                 self.board.vertices[current_vertex_id].settlement != player and 
+                 current_vertex_id != start_vertex)):  # Allow starting from opponent settlement
+                return 0
+            
+            visited_vertices.add(current_vertex_id)
             max_length = 0
+            
             # Explore neighbors
             for neighbor_id in adjacency[current_vertex_id]:
                 edge_tuple = tuple(sorted((current_vertex_id, neighbor_id)))
                 if edge_tuple not in visited_edges:
                     visited_edges.add(edge_tuple)
-                    length = 1 + dfs(neighbor_id, visited_edges)
+                    length = 1 + dfs(neighbor_id, visited_edges, visited_vertices)
                     if length > max_length:
                         max_length = length
                     visited_edges.remove(edge_tuple)
+            
+            visited_vertices.remove(current_vertex_id)
             return max_length
         
         # 3. Try DFS from each vertex in adjacency to find a global maximum
         global_max = 0
-        for vertex_id in adjacency:
-            # Each DFS has its own visited-edges set
-            path_length = dfs(vertex_id, set())
+        for start_vertex in adjacency:
+            # Each DFS has its own visited-edges and visited-vertices sets
+            path_length = dfs(start_vertex, set(), set())
             global_max = max(global_max, path_length)
         
         return global_max
