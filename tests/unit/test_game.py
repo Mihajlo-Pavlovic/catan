@@ -2,7 +2,7 @@ import random
 import pytest
 from game.game import Game
 from game.player import Player
-from game.board import Board
+from game.board import Board, Edge
 from game.constants import MAX_SETTLEMENTS, TILE_VERTEX_IDS, VALID_COORDS, PORT_RESOURCE_VERTEX_IDS_DICT
 
 @pytest.fixture
@@ -409,3 +409,134 @@ def test_who_to_slash_all_players(game, players):
     players_to_slash = game._who_to_slash()
     assert len(players_to_slash) == len(players)
     assert all(player in players_to_slash for player in players) 
+
+def test_place_road_initial_placement(game, players):
+    """Test placing a road during initial placement phase."""
+    player = players[0]
+    # Get a valid edge from the board
+    edge = next(iter(game.board.edges.values()))
+    
+    # Place road during initial placement (no resource cost)
+    game._place_road(player, edge, initial_placement=True)
+    
+    assert edge.road == player
+    assert edge in player.roads
+    # Resources shouldn't be deducted during initial placement
+    assert player.resources["wood"] == 0
+    assert player.resources["brick"] == 0
+
+def test_place_road_with_resources(game, players):
+    """Test placing a road with required resources."""
+    player = players[0]
+    edge = next(iter(game.board.edges.values()))
+    
+    # Give player required resources
+    player.resources["wood"] = 1
+    player.resources["brick"] = 1
+    
+    # Place settlement first to make road placement valid
+    vertex_id = edge.vertices[0]
+    vertex = game.board.vertices[vertex_id]
+    vertex.settlement = player
+    player.settlements.append(vertex)
+    
+    game._place_road(player, edge)
+    
+    assert edge.road == player
+    assert edge in player.roads
+    assert player.resources["wood"] == 0
+    assert player.resources["brick"] == 0
+
+def test_place_road_insufficient_resources(game, players):
+    """Test that road cannot be placed without sufficient resources."""
+    player = players[0]
+    edge = next(iter(game.board.edges.values()))
+    
+    # Place settlement first to make road placement valid
+    vertex_id = edge.vertices[0]
+    game.board.vertices[vertex_id].settlement = player
+    player.settlements.append(vertex_id)
+    
+    with pytest.raises(ValueError, match="Not enough resources to place a road"):
+        game._place_road(player, edge)
+
+def test_road_is_connected_to_settlement(game, players):
+    """Test road connection validation with settlement."""
+    player = players[0]
+    edge = next(iter(game.board.edges.values()))
+    
+    # Place settlement at one of the edge's vertices
+    vertex_id = edge.vertices[0]
+    game.board.vertices[vertex_id].settlement = player
+    player.settlements.append(vertex_id)
+    
+    assert game._road_is_connected(player, edge) == True
+
+def test_road_is_connected_to_existing_road(game, players):
+    """Test road connection validation with existing road."""
+    player = players[0]
+    # Get two adjacent edges
+    edge1 = next(iter(game.board.edges.values()))
+    v1_id, v2_id = edge1.vertices
+    # Find an edge that shares a vertex with edge1
+    edge2 = None
+    for e in game.board.edges.values():
+        if e != edge1 and (v1_id in e.vertices or v2_id in e.vertices):
+            edge2 = e
+            break
+    assert edge2 is not None
+    
+    # Place first road (with initial_placement=True to bypass resource check)
+    game._place_road(player, edge1, initial_placement=True)
+    
+    # Check if second edge is connected
+    assert game._road_is_connected(player, edge2) == True
+
+def test_calculate_longest_road(game, players):
+    """Test calculation of longest road length."""
+    player = players[0]
+    
+    # Create a path of 3 connected roads
+    edges = list(game.board.edges.values())
+    road_edges = []
+    current_vertex = edges[0].vertices[0]
+    
+    # Find 3 connected edges
+    for edge in edges:
+        if current_vertex in edge.vertices and edge not in road_edges:
+            road_edges.append(edge)
+            # Get the other vertex to continue the path
+            current_vertex = edge.vertices[0] if edge.vertices[1] == current_vertex else edge.vertices[1]
+            if len(road_edges) == 3:
+                break
+    
+    # Place the roads
+    for edge in road_edges:
+        game._place_road(player, edge, initial_placement=True)
+    
+    # Calculate longest road
+    length = game._calculate_player_longest_road(player)
+    assert length == 3
+
+def test_update_longest_road(game, players):
+    """Test updating longest road status and victory points."""
+    player1, player2 = players[0], players[1]
+    
+    # Initialize game's longest road tracking
+    game.longest_road = 4
+    game.longest_road_player = player1
+    player1.victory_points = 2  # Points for longest road
+    
+    # Build a longer road with player2
+    edges = [Edge(0, 1), Edge(1, 2), Edge(2, 3), Edge(3, 4), Edge(4, 5)]
+    for i in range(5):  # 5 connected roads
+        if i < len(edges):
+            game._place_road(player2, edges[i], initial_placement=True)
+    
+    # Update longest road
+    game._update_longest_road(player2)
+    
+    # Check that longest road status and points were transferred
+    assert game.longest_road_player == player2
+    assert player1.victory_points == 0  # Lost 2 points
+    assert player2.victory_points == 2  # Gained 2 points 

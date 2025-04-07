@@ -24,6 +24,8 @@ class Game:
         """
         self.board = Board()
         self.players = players
+        self.longest_road = 0
+        self.longest_road_player = None
 
     #def setup(self):
         #for player in self.players:
@@ -73,42 +75,139 @@ class Game:
           player.resources["wheat"] -= 1
         player.victory_points += 1
 
-    def _place_road(self, player: Player, edge : Edge, initial_placement: bool = False):
+    def _place_road(self, player: Player, edge: Edge, initial_placement: bool = False):
         """
         Place a road for a player at the specified edge.
-        
-        This method enforces the following rules:
-        - The edge must exist on the board
-        - The edge must not be already occupied
-        - The player must have required resources (1 wood, 1 brick)
-        - The player must not exceed maximum roads
-        
-        Args:
-            player (Player): The player placing the road
-            edge (Edge): The edge where the road will be placed
             
-        Raises:
-            AssertionError: If the edge doesn't exist on the board
-            ValueError: If placement violates any game rules
+        Enforces:
+        - The edge must exist on the board.
+        - The edge must not already have a road.
+        - Must have correct resources (1 wood, 1 brick) if not in initial placement.
+        - Must not exceed maximum roads.
+        - (Optional) For non-initial placements, the edge must connect to at least one vertex 
+          that is occupied by the player's settlement/city or touches another of that player's roads.
+        After placing the road, update 'longest road' if needed.
         """
-        assert edge.vertices in self.board.edges, f"Edge {edge} does not exist on the board"
-        # Check if edge is already occupied
+        # 1. Basic checks
+        assert edge.vertices in self.board.edges, f"Edge {edge} does not exist on the board."
         if edge.road is not None:
-          raise ValueError("Edge already has a road")
-        # Check if player has enough resources
-        if not initial_placement:
-          if player.resources["wood"] < 1 or player.resources["brick"] < 1:
-            raise ValueError("Player does not have enough resources to place a road")
-        # Check if player has enough roads
+            raise ValueError("Edge already has a road.")
         if len(player.roads) >= MAX_ROADS:
-          raise ValueError("Player has too many roads")
-        # Place road
+            raise ValueError("Player has too many roads.")
+        
+        # 2. Resource checks (if not initial placement)
+        if not initial_placement:
+            if player.resources["wood"] < 1 or player.resources["brick"] < 1:
+                raise ValueError("Not enough resources to place a road.")
+        
+        # 3. Connectivity checks (optional but recommended for full rules)
+        #    A newly placed road must be adjacent to:
+        #    - The player's existing road(s), OR
+        #    - A player's settlement/city (which itself is connected to roads).
+        #    You can skip this if you rely on the agent to only propose valid edges.
+        if not initial_placement and not self._road_is_connected(player, edge):
+            raise ValueError("Road must connect to the player's existing roads or settlements.")
+        
+        # 4. Place the road
         edge.road = player
         player.roads.append(edge)
-        # Remove resources from player
-        if not initial_placement: 
-          player.resources["wood"] -= 1
-          player.resources["brick"] -= 1
+        
+        # 5. Pay the resources
+        if not initial_placement:
+            player.resources["wood"] -= 1
+            player.resources["brick"] -= 1
+        
+        # 6. Update longest road
+        self._update_longest_road(player)
+
+
+    def _road_is_connected(self, player: Player, edge: Edge) -> bool:
+        """
+        Return True if this 'edge' shares a vertex with either:
+          - An existing road belonging to the same player
+          - Or a settlement/city of that player.
+        This ensures the newly placed road is continuous with the player's network.
+        """
+        (v1_id, v2_id) = edge.vertices
+        v1 = self.board.vertices[v1_id]
+        v2 = self.board.vertices[v2_id]
+        
+        # Check if either v1 or v2 is occupied by player's settlement or city
+        # Or belongs to an existing road.
+        # (When checking roads, we see if v1 or v2 is also an endpoint in the player's roads.)
+        
+        # Settlement/city check:
+        if (v1.settlement == player) or (v2.settlement == player):
+            return True
+
+        # Road adjacency check:
+        for existing_road in player.roads:
+            (r1_id, r2_id) = existing_road.vertices
+            # If the new road shares a vertex with an existing road, it's connected
+            if r1_id == v1_id or r1_id == v2_id or r2_id == v1_id or r2_id == v2_id:
+                return True
+
+        return False
+
+
+    def _update_longest_road(self, player: Player):
+        """
+        Recalculate the longest road length for 'player' and update game state if it exceeds the current record.
+        A simple approach is a DFS to find the maximum path length in the graph of edges the player owns.
+        """
+        longest_road_length = self._calculate_player_longest_road(player)
+        print(longest_road_length, self.longest_road)
+        if longest_road_length > self.longest_road:
+          self.longest_road = longest_road_length
+          old_longest_road_player = self.longest_road_player
+          self.longest_road_player = player
+          if self.longest_road > 4:
+            old_longest_road_player.victory_points -= 2
+            player.victory_points += 2
+            
+            
+
+
+    def _calculate_player_longest_road(self, player: Player) -> int:
+        """
+        Returns the length of the longest continuous road (path) owned by 'player'.
+        For each road edge, we consider it an undirected connection between the two vertices.
+        We'll do a DFS for each possible starting vertex, tracking used edges to avoid reuse.
+        """
+
+        from collections import defaultdict
+        
+        # 1. Build adjacency map of the player's road network:
+        #    adjacency[vertex_id] = list of connected vertex_ids via roads
+        adjacency = defaultdict(list)
+        for edge in player.roads:
+            (v1_id, v2_id) = edge.vertices
+            adjacency[v1_id].append(v2_id)
+            adjacency[v2_id].append(v1_id)
+        
+        # 2. DFS to find the longest path. In Catan, we can't reuse an edge in the same path.
+        #    We'll keep track of 'visited edges' so we don't double count them.
+        def dfs(current_vertex_id, visited_edges):
+            max_length = 0
+            # Explore neighbors
+            for neighbor_id in adjacency[current_vertex_id]:
+                edge_tuple = tuple(sorted((current_vertex_id, neighbor_id)))
+                if edge_tuple not in visited_edges:
+                    visited_edges.add(edge_tuple)
+                    length = 1 + dfs(neighbor_id, visited_edges)
+                    if length > max_length:
+                        max_length = length
+                    visited_edges.remove(edge_tuple)
+            return max_length
+        
+        # 3. Try DFS from each vertex in adjacency to find a global maximum
+        global_max = 0
+        for vertex_id in adjacency:
+            # Each DFS has its own visited-edges set
+            path_length = dfs(vertex_id, set())
+            global_max = max(global_max, path_length)
+        
+        return global_max
 
     def _place_city(self, player: Player, vertex: Vertex):
         """
