@@ -540,3 +540,13 @@ def test_update_longest_road(game, players):
     assert game.longest_road_player == player2
     assert player1.victory_points == 0  # Lost 2 points
     assert player2.victory_points == 2  # Gained 2 points 
+
+# TODO: Add tests for the case where the longest road is less than 5.
+# TODO: Add tests for the case where the longest road is more than 5.
+# TODO: Add tests for the case where the longest road is exactly 5.
+# TODO: Add test for circular roads
+# TODO: Add test for circular road with tail
+# TODO: Add test for circular road with multiple tails
+# TODO: Add test for when there is lone road
+# TODO: Add test for case when longest road is blocked by setlment of another player
+# TODO: Add test to confirm longest road needs to be connected
