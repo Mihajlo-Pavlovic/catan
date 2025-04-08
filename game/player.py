@@ -1,5 +1,5 @@
 # game/player.py
-
+from game.constants import DevelopmentCard
 class Player:
     """
     Represents a player in the Catan game.
@@ -40,7 +40,14 @@ class Player:
         self.cities = []        # list of vertex references
         self.roads = []        # list of edge references
         self.victory_points = 0
-
+        self.development_cards = {
+            DevelopmentCard.KNIGHT: 0,
+            DevelopmentCard.VICTORY_POINT: 0,
+            DevelopmentCard.ROAD_BUILDING: 0,
+            DevelopmentCard.YEAR_OF_PLENTY: 0,
+            DevelopmentCard.MONOPOLY: 0
+        }
+        
     def __repr__(self):
         """
         Returns a string representation of the player.

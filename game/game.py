@@ -1,8 +1,17 @@
 #game/game.py
 import random
+from enum import Enum
 from game.constants import ANY, MAX_SETTLEMENTS, MAX_CITIES, MAX_ROADS, PORT_RESOURCE_VERTEX_IDS_DICT, RESOURCE_TYPES
 from game.board import Board, Edge, Vertex
 from game.player import Player
+
+
+class DevelopmentCard(Enum):
+    KNIGHT = "Knight"
+    VICTORY_POINT = "Victory Point"
+    ROAD_BUILDING = "Road Building"
+    YEAR_OF_PLENTY = "Year of Plenty"
+    MONOPOLY = "Monopoly"
 
 class Game:
     """
@@ -26,9 +35,22 @@ class Game:
         self.players = players
         self.longest_road = 0
         self.longest_road_player = None
+        self.development_deck = self._create_development_deck()
+
 
     #def setup(self):
         #for player in self.players:
+
+    def _create_development_deck(self):
+        deck = (
+            [DevelopmentCard.KNIGHT] * 14 +
+            [DevelopmentCard.VICTORY_POINT] * 5 +
+            [DevelopmentCard.ROAD_BUILDING] * 2 +
+            [DevelopmentCard.YEAR_OF_PLENTY] * 2 +
+            [DevelopmentCard.MONOPOLY] * 2
+        )
+        random.shuffle(deck)
+        return deck
 
 
     def _place_settlement(self, player: Player, vertex: Vertex, initial_placement: bool = False):
@@ -266,6 +288,39 @@ class Game:
         player.resources["ore"] -= 3
         player.victory_points += 1
 
+
+    def _buy_development_card(self, player: Player):
+        """
+        Buy a development card for a player.
+        
+        The cost of a development card is:
+        - 1 ore
+        - 1 wheat
+        - 1 sheep
+        
+        Args:
+            player (Player): The player buying the development card
+            
+        Raises:
+            AssertionError: If there are no development cards left in the deck
+            AssertionError: If the player doesn't have enough resources
+        """
+        # Check if there are any development cards left to buy
+        assert len(self.development_deck) > 0, "No development cards left"
+        
+        # Verify player has the required resources (1 each of ore, wheat, and sheep)
+        assert player.resources["ore"] >= 1 and player.resources["wheat"] >= 1 and player.resources["sheep"] >= 1, "Player does not have enough resources to buy a development card"
+        
+        # Draw the top card from the development card deck
+        development_card = self.development_deck.pop()
+        
+        # Deduct the required resources from the player
+        player.resources["ore"] -= 1
+        player.resources["wheat"] -= 1
+        player.resources["sheep"] -= 1
+        
+        # Add the development card to the player's hand
+        player.development_cards[development_card] += 1
 
     def _get_resource_from_vertex(self, vertex: Vertex):
         """
