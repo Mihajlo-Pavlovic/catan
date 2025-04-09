@@ -1,5 +1,6 @@
 # game/player.py
-from game.constants import DevelopmentCard
+
+from game.development_cards import DevelopmentCard
 class Player:
     """
     Represents a player in the Catan game.
@@ -47,7 +48,7 @@ class Player:
             DevelopmentCard.YEAR_OF_PLENTY: 0,
             DevelopmentCard.MONOPOLY: 0
         }
-        
+
     def __repr__(self):
         """
         Returns a string representation of the player.

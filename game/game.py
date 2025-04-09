@@ -1,17 +1,10 @@
 #game/game.py
 import random
-from enum import Enum
 from game.constants import ANY, MAX_SETTLEMENTS, MAX_CITIES, MAX_ROADS, PORT_RESOURCE_VERTEX_IDS_DICT, RESOURCE_TYPES
 from game.board import Board, Edge, Vertex
 from game.player import Player
+from game.development_cards import DevelopmentCard
 
-
-class DevelopmentCard(Enum):
-    KNIGHT = "Knight"
-    VICTORY_POINT = "Victory Point"
-    ROAD_BUILDING = "Road Building"
-    YEAR_OF_PLENTY = "Year of Plenty"
-    MONOPOLY = "Monopoly"
 
 class Game:
     """

@@ -4,6 +4,7 @@ from game.game import Game
 from game.player import Player
 from game.board import Board, Edge
 from game.constants import MAX_SETTLEMENTS, TILE_VERTEX_IDS, VALID_COORDS, PORT_RESOURCE_VERTEX_IDS_DICT
+from game.development_cards import DevelopmentCard
 
 @pytest.fixture
 def board():
@@ -828,5 +829,86 @@ def test_longest_road_blocked_by_settlement(game, players):
     assert game.longest_road_player == None
     assert player1.victory_points == 0
 
+def test_buy_development_card(game, players):
+    """Test buying a development card."""
+    player = players[0]
+    
+    # Give player required resources
+    player.resources["ore"] = 1
+    player.resources["wheat"] = 1
+    player.resources["sheep"] = 1
+    
+    # Record initial deck size
+    initial_deck_size = len(game.development_deck)
+    
+    # Buy a development card
+    game._buy_development_card(player)
+    
+    # Verify resources were deducted
+    assert player.resources["ore"] == 0
+    assert player.resources["wheat"] == 0
+    assert player.resources["sheep"] == 0
+    
+    # Verify deck size decreased
+    assert len(game.development_deck) == initial_deck_size - 1
+    
+    # Verify player received a card
+    total_cards = sum(player.development_cards.values())
+    assert total_cards == 1
+
+def test_buy_development_card_insufficient_resources(game, players):
+    """Test that development cards cannot be bought without sufficient resources."""
+    player = players[0]
+    
+    # Give player insufficient resources
+    player.resources["ore"] = 0
+    player.resources["wheat"] = 1
+    player.resources["sheep"] = 1
+    
+    # Attempt to buy a development card
+    with pytest.raises(AssertionError, match="Player does not have enough resources"):
+        game._buy_development_card(player)
+
+def test_buy_development_card_empty_deck(game, players):
+    """Test that development cards cannot be bought when deck is empty."""
+    player = players[0]
+    
+    # Give player resources
+    player.resources["ore"] = 1
+    player.resources["wheat"] = 1
+    player.resources["sheep"] = 1
+    
+    # Empty the deck
+    game.development_deck = []
+    
+    # Attempt to buy a development card
+    with pytest.raises(AssertionError, match="No development cards left"):
+        game._buy_development_card(player)
+
+def test_development_deck_initialization(game):
+    """Test that development deck is initialized with correct card counts."""
+    # Count each type of card
+    card_counts = {card_type: 0 for card_type in DevelopmentCard}
+    for card in game.development_deck:
+        card_counts[card] += 1
+    
+    # Verify correct counts
+    assert card_counts[DevelopmentCard.KNIGHT] == 14
+    assert card_counts[DevelopmentCard.VICTORY_POINT] == 5
+    assert card_counts[DevelopmentCard.ROAD_BUILDING] == 2
+    assert card_counts[DevelopmentCard.YEAR_OF_PLENTY] == 2
+    assert card_counts[DevelopmentCard.MONOPOLY] == 2
+    
+    # Verify total count
+    assert len(game.development_deck) == 25
+
+def test_development_deck_shuffled(game):
+    """Test that development deck is shuffled during initialization."""
+    # Create multiple games and compare their deck orders
+    decks = [Game(players=[]).development_deck.copy() for _ in range(5)]
+    
+    # Check that at least two decks are different (very unlikely to be same if shuffled)
+    all_same = all(deck == decks[0] for deck in decks[1:])
+    assert not all_same, "Development decks were not shuffled"
 
 # TODO: Add test to confirm longest road needs to be connected
