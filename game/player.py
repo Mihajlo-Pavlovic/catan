@@ -166,8 +166,9 @@ class Player:
         - Resource inventory
         """
         print(f"  🧑‍🌾 {self.name} ({self.color})")
-        print(f"  🏆 Victory Points: {self.victory_points}")
+        print(f"  🏆 Victory Points: {self.victory_points + self.development_cards[DevelopmentCard.VICTORY_POINT]}")
         print(f"  🏠 Settlements: {self.settlements}")
         print(f"  🏙️  Cities: {self.cities}")
         print(f"  🛤️  Roads: {self.roads}")
         print(f"  🎒 Resources: {self.resources}")
+        print(f"  💰 Development Cards: {self.development_cards}")

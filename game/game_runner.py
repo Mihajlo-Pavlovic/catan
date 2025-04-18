@@ -148,6 +148,9 @@ def play_game(game: Game, agents: Dict[Player, "SimpleAgent"], max_turns: int = 
                     print(f"🏙️ {current_player.name} upgraded settlement to a city at vertex {vertex_id}.")
                 except ValueError as e:
                     print(f"🚨 Failed to place city: {e}")
+
+            elif action_name == "buy_development_card":
+                game._buy_development_card(current_player)
             
             else:
                 # Unknown action

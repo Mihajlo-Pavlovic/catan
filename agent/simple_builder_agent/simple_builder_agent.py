@@ -128,16 +128,20 @@ class SimpleAgent:
                 # but let's continue to see if we also want to build roads or cities in the same turn
 
         # 2. Build a road
-        if self._can_build_road():
+        elif self._can_build_road():
             edge_tuple = self._find_valid_road_spot(game)
             if edge_tuple is not None:
                 actions.append(("place_road", edge_tuple))
 
         # 3. Upgrade settlement to a city
-        if self._can_build_city():
+        elif self._can_build_city():
             settlement_vertex_id = self._find_existing_settlement_to_upgrade()
             if settlement_vertex_id is not None:
                 actions.append(("place_city", settlement_vertex_id))
+
+        # 4. Buy development card
+        elif self._can_buy_development_card(game):
+            actions.append(("buy_development_card", None))
 
         # If we found no possible actions, we do nothing (end turn).
         return actions
@@ -365,6 +369,23 @@ class SimpleAgent:
             best_tile_coord = valid_tiles[0]
         
         return (best_tile_coord, target_player)
+    
+    # ----------------------------------------------------------------------
+    # Development card logic
+    # ----------------------------------------------------------------------
+    def _can_buy_development_card(self, game: Game) -> bool:
+        """
+        Check if buying a development card is possible.
+
+        Verifies:
+        1. Player has required resources (1 wheat, 1 ore, 1 sheep)
+        2. Player hasn't reached development card limit
+        """
+        has_resources = (self.player.resources["wheat"] >= 1 and 
+                         self.player.resources["ore"] >= 1 and 
+                         self.player.resources["sheep"] >= 1)
+        development_card_left = len(game.development_deck) > 0
+        return has_resources and development_card_left
     
     # ----------------------------------------------------------------------
     # Slash logic
