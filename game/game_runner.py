@@ -142,20 +142,19 @@ def play_game(game: Game, agents: Dict[Player, "SimpleAgent"], max_turns: int = 
                     game._place_settlement(current_player, vertex_obj)
                     print(f"🏠 {current_player.name} built a settlement on vertex {vertex_id}.")
                 except ValueError as e:
-                    print(f"🚨 Failed to place settlement: {e}")
+                    raise ValueError(f"🚨 Failed to place settlement: {e}")
 
             elif action_name == "place_road":
                 # data is a tuple (v1_id, v2_id)
                 v1_id, v2_id = sorted((data[0], data[1]))
                 if (v1_id, v2_id) not in game.board.edges:
-                    print(f"🚨 Invalid edge ({v1_id}, {v2_id}).")
-                    continue
+                    raise ValueError(f"🚨 Invalid edge ({v1_id}, {v2_id}).")
                 edge_obj = game.board.edges[(v1_id, v2_id)]
                 try:
                     game._place_road(current_player, edge_obj)
                     print(f"🏗️ {current_player.name} built a road on edge {v1_id}-{v2_id}.")
                 except ValueError as e:
-                    print(f"🚨 Failed to place road: {e}")
+                    raise ValueError(f"🚨 Failed to place road: {e}")
 
             elif action_name == "place_city":
                 vertex_id = data
@@ -164,14 +163,23 @@ def play_game(game: Game, agents: Dict[Player, "SimpleAgent"], max_turns: int = 
                     game._place_city(current_player, vertex_obj)
                     print(f"🏙️ {current_player.name} upgraded settlement to a city at vertex {vertex_id}.")
                 except ValueError as e:
-                    print(f"🚨 Failed to place city: {e}")
+                    raise ValueError(f"🚨 Failed to place city: {e}")
 
             elif action_name == "buy_development_card":
                 game._buy_development_card(current_player)
+
+            elif action_name == "play_knight":
+                try:
+                    print(f"🐎 Playing knight: {data}")
+                    game._play_knight(data["knight_move_result"], current_player, data["player_to_steal_from"])
+                except ValueError as e:
+                    raise ValueError(f"🚨 Failed to play knight: {e}")
+
             
             else:
                 # Unknown action
                 print(f"🚨 Unknown action {action_name} requested by agent.")
+                raise ValueError(f"Unknown action {action_name} requested by agent.")
 
         # 4. End turn logic: pass to next player
         turn_count += 1

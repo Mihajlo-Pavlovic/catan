@@ -10,7 +10,7 @@ def main():
     # Run the game using the game runner
     turn_counts = []
     times = []
-    for i in range(1000):
+    for i in range(1):
         # mesure start time
         start_time = time.time()
         turn_count = run_game_with_agents()

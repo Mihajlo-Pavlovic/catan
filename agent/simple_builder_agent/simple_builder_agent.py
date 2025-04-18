@@ -18,6 +18,7 @@ The agent makes decisions based on:
 
 import random
 from typing import Dict, Union, Tuple, List
+from game.development_cards import DevelopmentCard
 from game.game import Game
 from game.player import Player
 from game.board import Vertex, Edge, Vertex_Id
@@ -127,7 +128,13 @@ class SimpleAgent:
         can_build_city, needed_trades_city = self._can_build_city()
         can_build_road, road_trades = self._can_build_road()
         can_buy_dev_card, dev_card_trades = self._can_buy_development_card(game)
+        can_play_knight, knight_move_result, player_to_steal_from = self._can_play_knight(game)
 
+        if can_play_knight:
+            actions.append(("play_knight", {
+                "knight_move_result": knight_move_result,
+                "player_to_steal_from": player_to_steal_from
+            }))
         
         if can_build_settlement:
             # Perform any necessary trades
@@ -552,7 +559,6 @@ class SimpleAgent:
         1. Target player with highest victory points
         2. Place robber on high-value tile
         3. Avoid self-harm (own settlements)
-        4. Consider resource denial impact
         
         Returns:
             Tuple of (robber_coordinates, player_to_steal_from)
@@ -561,7 +567,7 @@ class SimpleAgent:
         target_player = None
         max_points = -1
         for player in game.players:
-            if player != self.player and player.victory_points > max_points:
+            if player != self.player and player.victory_points > max_points and sum(player.resources.values()) > 0:
                     target_player = player
                     max_points = player.victory_points
 
@@ -608,6 +614,10 @@ class SimpleAgent:
         # If no ideal tile found, use any valid tile
         if best_tile_coord is None:
             best_tile_coord = valid_tiles[0]
+            for vertex in game.board.tiles[valid_tiles[0]].vertices:
+                if vertex.settlement is not None and vertex.settlement != self.player:
+                    target_player = vertex.settlement
+                    break
         
         return (best_tile_coord, target_player)
     
@@ -730,7 +740,43 @@ class SimpleAgent:
             discard_dict[card] = discard_dict.get(card, 0) + 1
 
         return discard_dict
+    
+
+    # ----------------------------------------------------------------------
+    # Development card logic
+    # ----------------------------------------------------------------------
+    def _can_play_knight(self, game: Game) -> tuple[bool, tuple[int, int], Player]:
+        """
+        Check if playing a knight development card is possible.
+
+        Verifies:
+        1. Player has a knight development card
+        2. Player is blocked by a robber
+
+        Returns:
+            tuple[bool, tuple[int, int]]:
+                - bool: True if knight can be played
+                - tuple[int, int]: coordinates of the tile to move the robber to
+                - Player: player to steal from
+        """
+        # Check if player has a knight development card
+        if self.player.development_cards[DevelopmentCard.KNIGHT] == 0:
+            return False, None, None
         
+        # Check if player is blocked by a robber
+        # blocked_by_robber = False
+        # robber_tile = game.board.tiles[game.board.robber]
+        # for vertex in robber_tile.vertices:
+        #     if vertex.settlement == self.player or vertex.city == self.player:
+        #         blocked_by_robber = True
+        #         break
         
+        # if not blocked_by_robber:
+        #     return False, None, None
         
+        robber_move_result = self.handle_robber_move(game)
+        if robber_move_result[0] is None:
+            return False, None
+        
+        return True, robber_move_result[0], robber_move_result[1]
 

@@ -28,6 +28,7 @@ class Game:
         self.players = players
         self.longest_road = 0
         self.longest_road_player = None
+        self.knights_played = {player: 0 for player in players}
         self.development_deck = self._create_development_deck()
 
 
@@ -619,7 +620,43 @@ class Game:
       
         # Remove the used card from player's hand
         player.development_cards[DevelopmentCard.KNIGHT] -= 1
-      
+        self._update_largest_army(player)
+        print(f"self.knights_played: {self.knights_played}")
+
+    def _update_largest_army(self, player: Player) -> None:
+        """
+        Update the largest army status after a knight is played.
+        
+        Args:
+            player: The player who just played a knight card
+        """
+        current_count = self.knights_played[player]
+        
+        # Only consider largest army changes if player has reached 3 knights
+        if current_count >= 2:
+            # Find current holder of largest army (if any)
+            current_largest = None
+            largest_count = 2  # Initialize to minimum threshold - 1
+            
+            for p, count in self.knights_played.items():
+                if count >= 3 and count > largest_count:
+                    current_largest = p
+                    largest_count = count
+            
+            # If no one had largest army and this player just reached 3+
+            if current_largest is None:
+                print(f"Player {player.name} has earned largest army with {current_count} knights")
+                player.victory_points += 2
+                
+            # If someone else had largest army and this player just exceeded them
+            elif current_largest != player and current_count > largest_count:
+                print(f"Player {player.name} has taken largest army from {current_largest.name} "
+                      f"({current_count} vs {largest_count} knights)")
+                current_largest.victory_points -= 2
+                player.victory_points += 2
+
+
+        self.knights_played[player] += 1
 
       
       
