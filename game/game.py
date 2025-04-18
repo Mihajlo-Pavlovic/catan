@@ -540,13 +540,13 @@ class Game:
         assert player.development_cards[DevelopmentCard.ROAD_BUILDING] > 0, "Player does not have any road building cards"
         assert len(edges_to_build) > 0, "Player must build at least 1 road"
 
-        # Remove the used card from player's hand
-        player.development_cards[DevelopmentCard.ROAD_BUILDING] -= 1
 
         # Place each road (with initial_placement=True to skip resource costs)
         for edge in edges_to_build:
             self._place_road(player, edge, True)
 
+        # Remove the used card from player's hand
+        player.development_cards[DevelopmentCard.ROAD_BUILDING] -= 1
 
     def _play_monopoly(self, player: Player, resource_type: str):
         """
@@ -567,9 +567,6 @@ class Game:
         assert player.development_cards[DevelopmentCard.MONOPOLY] > 0, "Player does not have any monopoly cards"
         assert resource_type in RESOURCE_TYPES, "Invalid resource type"
 
-        # Remove the used card from player's hand
-        player.development_cards[DevelopmentCard.MONOPOLY] -= 1
-
         # Collect the specified resource from all other players
         for p in self.players:
             if p != player:
@@ -578,6 +575,8 @@ class Game:
                 # Remove resources from other player
                 p.resources[resource_type] = 0
 
+        # Remove the used card from player's hand
+        player.development_cards[DevelopmentCard.MONOPOLY] -= 1
 
     def _play_knight(self, coord_to_move_robber: tuple[int, int], player: Player, player_to_steal_from: Player):
         """
@@ -604,21 +603,20 @@ class Game:
         assert player_to_steal_from != player, "Cannot steal from yourself"
         assert coord_to_move_robber != self.board.robber, "Robber is already on the tile"
 
-        # Remove the used card from player's hand
-        player.development_cards[DevelopmentCard.KNIGHT] -= 1
-
         # Move the robber to the new location
         self._move_robber(coord_to_move_robber)
-
+        
         # Handle stealing if a target player is specified
         if player_to_steal_from is not None:
             # Verify target player has resources and a settlement on the robber tile
-            assert player_to_steal_from.resources[ANY] > 0, "Player to steal from does not have any resources"
-            assert any(vertex in self.board.tile_cord_dict[coord_to_move_robber].vertices 
+            assert sum(player_to_steal_from.resources.values()) > 0, "Player to steal from does not have any resources"
+            assert any(vertex in self.board.tiles[coord_to_move_robber].vertices 
                       for vertex in player_to_steal_from.settlements), "Player to steal from does not have a settlement on the tile"
             # Steal a random resource
             self._steal_resource(player, player_to_steal_from)
       
+        # Remove the used card from player's hand
+        player.development_cards[DevelopmentCard.KNIGHT] -= 1
       
 
       

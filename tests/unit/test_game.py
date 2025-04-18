@@ -414,17 +414,29 @@ def test_who_to_slash_all_players(game, players):
 def test_place_road_initial_placement(game, players):
     """Test placing a road during initial placement phase."""
     player = players[0]
+    
     # Get a valid edge from the board
     edge = next(iter(game.board.edges.values()))
+    
+    # Place a settlement at one of the edge's vertices first
+    vertex_id = edge.vertices[0]  # Get first vertex of the edge
+    vertex = game.board.vertices[vertex_id]
+    vertex.settlement = player
+    player.settlements.append(vertex)
     
     # Place road during initial placement (no resource cost)
     game._place_road(player, edge, initial_placement=True)
     
+    # Verify road placement
     assert edge.road == player
     assert edge in player.roads
+    
     # Resources shouldn't be deducted during initial placement
     assert player.resources["wood"] == 0
     assert player.resources["brick"] == 0
+    
+    # Verify road is connected to settlement
+    assert game._road_is_connected(player, edge) == True
 
 def test_place_road_with_resources(game, players):
     """Test placing a road with required resources."""
@@ -487,8 +499,9 @@ def test_road_is_connected_to_existing_road(game, players):
             break
     assert edge2 is not None
     
-    # Place first road (with initial_placement=True to bypass resource check)
-    game._place_road(player, edge1, initial_placement=True)
+    # Place first road 
+    edge1.road = player
+    player.roads.append(edge1)
     
     # Check if second edge is connected
     assert game._road_is_connected(player, edge2) == True
@@ -513,8 +526,9 @@ def test_calculate_longest_road(game, players):
     
     # Place the roads
     for edge in road_edges:
-        game._place_road(player, edge, initial_placement=True)
-    
+        edge.road = player
+        player.roads.append(edge)    
+
     # Calculate longest road
     length = game._calculate_player_longest_road(player)
     assert length == 3
@@ -532,7 +546,8 @@ def test_update_longest_road(game, players):
     edges = [Edge(0, 1), Edge(1, 2), Edge(2, 3), Edge(3, 4), Edge(4, 5)]
     for i in range(5):  # 5 connected roads
         if i < len(edges):
-            game._place_road(player2, edges[i], initial_placement=True)
+            edges[i].road = player2
+            player2.roads.append(edges[i])
     
     # Update longest road
     game._update_longest_road(player2)
@@ -563,7 +578,8 @@ def test_longest_road_less_than_five(game, players):
     
     # Place the roads
     for edge in road_edges:
-        game._place_road(player, edge, initial_placement=True)
+        edge.road = player
+        player.roads.append(edge)
     
     # Update longest road
     game._update_longest_road(player)
@@ -593,7 +609,10 @@ def test_longest_road_exactly_five(game, players):
     
     # Place the roads
     for edge in road_edges:
-        game._place_road(player, edge, initial_placement=True)
+        edge.road = player
+        player.roads.append(edge)
+
+    game._update_longest_road(player)
     
     # Verify victory points were awarded
     assert player.victory_points == 2  # Should get 2 points for longest road
@@ -609,7 +628,8 @@ def test_longest_road_more_than_five(game, players):
     
     # Place the roads for player1
     for edge in road_edges:
-        game._place_road(player1, edge, initial_placement=True)
+        edge.road = player1
+        player1.roads.append(edge)
     
     game._update_longest_road(player1)
     assert player1.victory_points == 2
@@ -620,8 +640,10 @@ def test_longest_road_more_than_five(game, players):
     
     # Place the roads for player2
     for edge in road_edges:
-        game._place_road(player2, edge, initial_placement=True)
-    
+        edge.road = player2
+        player2.roads.append(edge)
+
+    game._update_longest_road(player2)
     
     # Verify longest road status transferred to player2
     assert player1.victory_points == 0  # Lost the points
@@ -637,7 +659,8 @@ def test_longest_road_tracking(game, players):
     road_edges = [Edge(0, 1), Edge(1, 2), Edge(2, 3)]
     # Place the roads for player1
     for edge in road_edges:
-        game._place_road(player1, edge, initial_placement=True)
+        edge.road = player1
+        player1.roads.append(edge)
     
     game._update_longest_road(player1)
     
@@ -651,7 +674,8 @@ def test_longest_road_tracking(game, players):
     
     # Place the roads for player2
     for edge in road_edges:
-        game._place_road(player2, edge, initial_placement=True)
+        edge.road = player2
+        player2.roads.append(edge)
     
     game._update_longest_road(player2)
     
@@ -676,11 +700,13 @@ def test_circular_road(game, players):
     
     # Place the roads to form the circle
     for edge in edges:
-        game._place_road(player, edge, initial_placement=True)
+        edge.road = player
+        player.roads.append(edge)
     
+    game._update_longest_road(player)
+
     # Calculate longest road
     length = game._calculate_player_longest_road(player)
-    
     # Verify the length is correct (should be 4 for a simple circle)
     assert length == 6
     assert game.longest_road == 6
@@ -704,7 +730,10 @@ def test_circular_road_with_tail(game, players):
     
     # Place all roads
     for edge in edges:
-        game._place_road(player, edge, initial_placement=True)
+        edge.road = player
+        player.roads.append(edge)
+
+    game._update_longest_road(player)
     
     # Calculate longest road
     length = game._calculate_player_longest_road(player)
@@ -734,7 +763,10 @@ def test_circular_road_with_multiple_tails(game, players):
     
     # Place all roads
     for edge in edges:
-        game._place_road(player, edge, initial_placement=True)
+        edge.road = player
+        player.roads.append(edge)
+
+    game._update_longest_road(player)
     
     # Calculate longest road
     length = game._calculate_player_longest_road(player)
@@ -766,7 +798,10 @@ def test_multiple_circles_with_shared_edge(game, players):
     
     # Place all roads
     for edge in edges:
-        game._place_road(player, edge, initial_placement=True)
+        edge.road = player
+        player.roads.append(edge)
+
+    game._update_longest_road(player)
     
     # Calculate longest road
     length = game._calculate_player_longest_road(player)
@@ -796,7 +831,8 @@ def test_longest_road_blocked_by_settlement(game, players):
     
     # Place the roads for player1
     for edge in edges:
-        game._place_road(player1, edge, initial_placement=True)
+        edge.road = player1
+        player1.roads.append(edge)
     
     # Verify initial longest road
     game._update_longest_road(player1)
@@ -911,4 +947,399 @@ def test_development_deck_shuffled(game):
     all_same = all(deck == decks[0] for deck in decks[1:])
     assert not all_same, "Development decks were not shuffled"
 
-# TODO: Add test to confirm longest road needs to be connected
+def test_play_road_building_basic(game, players):
+    """Test basic usage of Road Building card to place two roads."""
+    player = players[0]
+    
+    # Give player a road building card
+    player.development_cards[DevelopmentCard.ROAD_BUILDING] = 1
+    
+    # Create two valid edges for road placement
+    edge1 = Edge(0, 1)
+    edge2 = Edge(1, 2)
+    
+    # Place a settlement to make road placement valid
+    vertex = game.board.vertices[0]
+    vertex.settlement = player
+    player.settlements.append(vertex)
+    
+    # Use road building card
+    game._play_road_building(player, [edge1, edge2])
+    
+    # Verify effects
+    assert player.development_cards[DevelopmentCard.ROAD_BUILDING] == 0  # Card was used
+    assert edge1.road == player  # First road was placed
+    assert edge2.road == player  # Second road was placed
+    assert len(player.roads) == 2  # Player has two roads
+
+def test_play_road_building_single_road(game, players):
+    """Test using Road Building card to place just one road."""
+    player = players[0]
+    
+    # Give player a road building card
+    player.development_cards[DevelopmentCard.ROAD_BUILDING] = 1
+    
+    # Create one valid edge
+    edge = Edge(0, 1)
+    
+    # Place a settlement to make road placement valid
+    vertex = game.board.vertices[0]
+    vertex.settlement = player
+    player.settlements.append(vertex)
+    
+    # Use road building card for single road
+    game._play_road_building(player, [edge])
+    
+    # Verify effects
+    assert player.development_cards[DevelopmentCard.ROAD_BUILDING] == 0
+    assert edge.road == player
+    assert len(player.roads) == 1
+
+def test_play_road_building_no_card(game, players):
+    """Test that Road Building card cannot be used if player doesn't have it."""
+    player = players[0]
+    
+    # Ensure player has no road building card
+    player.development_cards[DevelopmentCard.ROAD_BUILDING] = 0
+    
+    # Try to use road building card
+    with pytest.raises(AssertionError, match="Player does not have any road building cards"):
+        game._play_road_building(player, [Edge(0, 1)])
+
+def test_play_road_building_no_edges(game, players):
+    """Test that Road Building card requires at least one edge to build."""
+    player = players[0]
+    
+    # Give player a road building card
+    player.development_cards[DevelopmentCard.ROAD_BUILDING] = 1
+    
+    # Try to use card with empty edge list
+    with pytest.raises(AssertionError, match="Player must build at least 1 road"):
+        game._play_road_building(player, [])
+
+def test_play_road_building_invalid_placement(game, players):
+    """Test that Road Building card follows normal road placement rules."""
+    player = players[0]
+    
+    # Give player a road building card
+    player.development_cards[DevelopmentCard.ROAD_BUILDING] = 1
+    
+    # Try to place roads without a settlement (should fail)
+    edge1 = Edge(0, 1)
+    edge2 = Edge(1, 2)
+    
+    # Should raise error due to invalid placement (no connected settlement)
+    with pytest.raises(ValueError, match="Road must connect to the player's existing roads or settlements"):
+        game._play_road_building(player, [edge1, edge2])
+    
+    # Verify no roads were placed and card wasn't used
+    assert player.development_cards[DevelopmentCard.ROAD_BUILDING] == 1
+    assert len(player.roads) == 0
+
+def test_play_road_building_longest_road_update(game, players):
+    """Test that Road Building card placement updates longest road calculation."""
+    player = players[0]
+    
+    # Give player a road building card
+    player.development_cards[DevelopmentCard.ROAD_BUILDING] = 1
+    
+    # Place initial settlement and roads to create a path
+    vertex = game.board.vertices[0]
+    vertex.settlement = player
+    player.settlements.append(vertex)
+    
+    # Create a sequence of connected edges
+    edges = [
+        Edge(0, 1),
+        Edge(1, 2),
+        Edge(2, 3)
+    ]
+    
+    # Place initial roads
+    for edge in edges[:1]:
+        game._place_road(player, edge, initial_placement=True)
+    
+    # Use road building card to extend the path
+    game._play_road_building(player, edges[1:])
+    
+    # Verify longest road calculation
+    assert game._calculate_player_longest_road(player) == 3
+    assert len(player.roads) == 3
+
+def test_play_monopoly_basic(game, players):
+    """Test basic usage of Monopoly card to collect resources from other players."""
+    player1, player2, player3 = players[0:3]
+    
+    # Give player1 a monopoly card and others some resources
+    player1.development_cards[DevelopmentCard.MONOPOLY] = 1
+    player2.resources["wood"] = 2
+    player3.resources["wood"] = 3
+    
+    # Use monopoly card
+    game._play_monopoly(player1, "wood")
+    
+    # Verify effects
+    assert player1.development_cards[DevelopmentCard.MONOPOLY] == 0  # Card was used
+    assert player1.resources["wood"] == 5  # Collected all wood (2 + 3)
+    assert player2.resources["wood"] == 0  # Lost all wood
+    assert player3.resources["wood"] == 0  # Lost all wood
+
+def test_play_monopoly_no_resources(game, players):
+    """Test using Monopoly card when other players have no resources."""
+    player1, player2, player3 = players[0:3]
+    
+    # Give player1 a monopoly card but no resources to others
+    player1.development_cards[DevelopmentCard.MONOPOLY] = 1
+    player1.resources["wood"] = 1  # Give player1 some initial wood
+    
+    # Use monopoly card
+    game._play_monopoly(player1, "wood")
+    
+    # Verify effects
+    assert player1.development_cards[DevelopmentCard.MONOPOLY] == 0
+    assert player1.resources["wood"] == 1  # Kept original wood, no new wood collected
+    assert player2.resources["wood"] == 0
+    assert player3.resources["wood"] == 0
+
+def test_play_monopoly_no_card(game, players):
+    """Test that Monopoly card cannot be used if player doesn't have it."""
+    player = players[0]
+    
+    # Ensure player has no monopoly card
+    player.development_cards[DevelopmentCard.MONOPOLY] = 0
+    
+    # Try to use monopoly card
+    with pytest.raises(AssertionError, match="Player does not have any monopoly cards"):
+        game._play_monopoly(player, "wood")
+
+def test_play_monopoly_invalid_resource(game, players):
+    """Test that Monopoly card cannot be used with invalid resource type."""
+    player = players[0]
+    
+    # Give player a monopoly card
+    player.development_cards[DevelopmentCard.MONOPOLY] = 1
+    
+    # Try to use card with invalid resource
+    with pytest.raises(AssertionError, match="Invalid resource type"):
+        game._play_monopoly(player, "invalid_resource")
+    
+    # Verify card wasn't used
+    assert player.development_cards[DevelopmentCard.MONOPOLY] == 1
+
+def test_play_monopoly_multiple_resource_types(game, players):
+    """Test that Monopoly card only affects the specified resource type."""
+    player1, player2 = players[0:2]
+    
+    # Setup resources
+    player1.development_cards[DevelopmentCard.MONOPOLY] = 1
+    player2.resources["wood"] = 2
+    player2.resources["brick"] = 3
+    
+    # Use monopoly card on wood
+    game._play_monopoly(player1, "wood")
+    
+    # Verify only wood was affected
+    assert player1.resources["wood"] == 2  # Got wood
+    assert player1.resources["brick"] == 0  # Didn't get brick
+    assert player2.resources["wood"] == 0  # Lost wood
+    assert player2.resources["brick"] == 3  # Kept brick
+
+def test_play_monopoly_keeps_own_resources(game, players):
+    """Test that Monopoly card doesn't affect the player's own resources."""
+    player1, player2 = players[0:2]
+    
+    # Setup resources
+    player1.development_cards[DevelopmentCard.MONOPOLY] = 1
+    player1.resources["wood"] = 2  # Player's own wood
+    player2.resources["wood"] = 3
+    
+    # Use monopoly card
+    game._play_monopoly(player1, "wood")
+    
+    # Verify player kept their resources and got others
+    assert player1.resources["wood"] == 5  # Own 2 + 3 from other player
+    assert player2.resources["wood"] == 0
+
+def test_play_monopoly_all_players(game, players):
+    """Test that Monopoly card affects all other players."""
+    player1, player2, player3, player4 = players
+    
+    # Setup resources
+    player1.development_cards[DevelopmentCard.MONOPOLY] = 1
+    player2.resources["wood"] = 1
+    player3.resources["wood"] = 2
+    player4.resources["wood"] = 3
+    
+    # Use monopoly card
+    game._play_monopoly(player1, "wood")
+    
+    # Verify all players were affected
+    assert player1.resources["wood"] == 6  # Got all wood (1 + 2 + 3)
+    assert player2.resources["wood"] == 0
+    assert player3.resources["wood"] == 0
+    assert player4.resources["wood"] == 0
+
+def test_play_knight_basic(game, players):
+    """Test basic usage of Knight card to move robber and steal a resource."""
+    player1, player2 = players[0:2]
+    
+    # Give player1 a knight card and player2 some resources
+    player1.development_cards[DevelopmentCard.KNIGHT] = 1
+    player2.resources["wood"] = 1
+    
+    # Place player2's settlement on a tile
+    new_robber_pos = (0, 0)
+    tile = game.board.tiles[new_robber_pos]
+    vertex = tile.vertices[0]
+    vertex.settlement = player2
+    player2.settlements.append(vertex)
+    
+    # Use knight card
+    initial_robber = game.board.robber
+    game._play_knight(new_robber_pos, player1, player2)
+    
+    # Verify effects
+    assert player1.development_cards[DevelopmentCard.KNIGHT] == 0  # Card was used
+    assert game.board.robber == new_robber_pos  # Robber moved
+    assert game.board.robber != initial_robber  # Robber position changed
+    assert player1.resources["wood"] == 1  # Stole resource
+    assert player2.resources["wood"] == 0  # Lost resource
+
+def test_play_knight_no_card(game, players):
+    """Test that Knight card cannot be used if player doesn't have it."""
+    player1, player2 = players[0:2]
+    
+    # Ensure player has no knight card
+    player1.development_cards[DevelopmentCard.KNIGHT] = 0
+    
+    with pytest.raises(AssertionError, match="Player does not have any knight cards"):
+        game._play_knight((0, 0), player1, player2)
+
+def test_play_knight_steal_from_self(game, players):
+    """Test that Knight card cannot be used to steal from self."""
+    player = players[0]
+    
+    # Give player a knight card
+    player.development_cards[DevelopmentCard.KNIGHT] = 1
+    
+    with pytest.raises(AssertionError, match="Cannot steal from yourself"):
+        game._play_knight((0, 0), player, player)
+
+def test_play_knight_same_position(game, players):
+    """Test that Knight card cannot move robber to current location."""
+    player1, player2 = players[0:2]
+    
+    # Give player a knight card
+    player1.development_cards[DevelopmentCard.KNIGHT] = 1
+    current_robber = game.board.robber
+    
+    with pytest.raises(AssertionError, match="Robber is already on the tile"):
+        game._play_knight(current_robber, player1, player2)
+
+def test_play_knight_no_resources_to_steal(game, players):
+    """Test that Knight card fails when target has no resources."""
+    player1, player2 = players[0:2]
+    
+    # Setup
+    player1.development_cards[DevelopmentCard.KNIGHT] = 1
+    # Place player2's settlement but give no resources
+    vertex = game.board.tiles[(0, 0)].vertices[0]
+    vertex.settlement = player2
+    player2.settlements.append(vertex)
+    
+    with pytest.raises(AssertionError, match="Player to steal from does not have any resources"):
+        game._play_knight((0, 0), player1, player2)
+
+def test_play_knight_no_settlement_on_tile(game, players):
+    """Test that Knight card fails when target has no settlement on chosen tile."""
+    player1, player2 = players[0:2]
+    
+    # Setup
+    player1.development_cards[DevelopmentCard.KNIGHT] = 1
+    player2.resources["wood"] = 1
+    # Place settlement on different tile
+    vertex = game.board.tiles[(1, 1)].vertices[0]
+    vertex.settlement = player2
+    player2.settlements.append(vertex)
+    
+    with pytest.raises(AssertionError, match="Player to steal from does not have a settlement on the tile"):
+        game._play_knight((0, 0), player1, player2)
+
+def test_play_knight_move_only(game, players):
+    """Test using Knight card to only move robber without stealing."""
+    player = players[0]
+    
+    # Give player a knight card
+    player.development_cards[DevelopmentCard.KNIGHT] = 1
+    
+    # Find a new position for the robber that's different from current position
+    initial_robber = game.board.robber
+    new_pos = initial_robber
+    for pos in game.board.tiles.keys():
+        if pos != initial_robber:
+            new_pos = pos
+            break
+    
+    # Use knight card without stealing
+    game._play_knight(new_pos, player, None)
+    
+    # Verify only movement occurred
+    assert player.development_cards[DevelopmentCard.KNIGHT] == 0
+    assert game.board.robber == new_pos  # Robber moved to new position
+    assert game.board.robber != initial_robber  # Robber is not in original position
+
+def test_play_knight_with_city(game, players):
+    """Test that Knight card works with cities as well as settlements."""
+    player1, player2 = players[0:2]
+    
+    # Setup
+    player1.development_cards[DevelopmentCard.KNIGHT] = 1
+    player2.resources["wood"] = 1
+    
+    # Place player2's city on a tile
+    new_robber_pos = (0, 0)
+    tile = game.board.tiles[new_robber_pos]
+    vertex = tile.vertices[0]
+    vertex.city = player2
+    player2.settlements.append(vertex)
+    player2.cities.append(vertex)
+    
+    # Use knight card
+    game._play_knight(new_robber_pos, player1, player2)
+    
+    # Verify stealing worked with city
+    assert player1.resources["wood"] == 1
+    assert player2.resources["wood"] == 0
+
+def test_play_knight_multiple_resources(game, players):
+    """Test Knight card stealing when target has multiple resources."""
+    player1, player2 = players[0:2]
+    
+    # Setup
+    player1.development_cards[DevelopmentCard.KNIGHT] = 1
+    player2.resources = {"wood": 2, "brick": 3, "sheep": 1}
+    
+    # Find a new position for the robber that's different from current position
+    initial_robber = game.board.robber
+    new_robber_pos = initial_robber
+    for pos in game.board.tiles.keys():
+        if pos != initial_robber:
+            new_robber_pos = pos
+            break
+    
+    # Place player2's settlement
+    tile = game.board.tiles[new_robber_pos]
+    vertex = tile.vertices[0]
+    vertex.settlement = player2
+    player2.settlements.append(vertex)
+    
+    # Use knight card
+    game._play_knight(new_robber_pos, player1, player2)
+    
+    # Verify exactly one resource was stolen
+    total_resources_player1 = sum(player1.resources.values())
+    total_resources_player2 = sum(player2.resources.values())
+    assert total_resources_player1 == 1  # Stole exactly one resource
+    assert total_resources_player2 == 5  # Lost exactly one resource
+    assert game.board.robber == new_robber_pos  # Robber moved to new position
+    assert game.board.robber != initial_robber  # Robber is not in original position
