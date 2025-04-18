@@ -81,7 +81,7 @@ def play_game(game: Game, agents: Dict[Player, "SimpleAgent"], max_turns: int = 
         # Check for a winning condition (e.g., first to 10 points).
         for p in game.players:
             if p.victory_points + p.development_cards[DevelopmentCard.VICTORY_POINT] >= 10:
-                print(f"🏆 Player {p.name} wins with {p.victory_points} points!")
+                print(f"🏆 Player {p.name} wins with {p.victory_points + p.development_cards[DevelopmentCard.VICTORY_POINT]} points!")
                 return
         
         current_agent = agents[turn_count % len(game.players)]
@@ -117,8 +117,25 @@ def play_game(game: Game, agents: Dict[Player, "SimpleAgent"], max_turns: int = 
 
         # 3. Agent decides on building/trading actions
         actions = current_agent.decide_turn_actions(game)
-        for (action_name, data) in actions:
-            if action_name == "place_settlement":
+        for action in actions:
+            # Handle both single-item and two-item actions
+            if isinstance(action, tuple) and len(action) == 2:
+                action_name, data = action
+            else:
+                action_name = action
+                data = None
+
+            if action_name == "trade_with_bank":
+                game._trade_with_bank(
+                    player=current_player,
+                    resource_type_to_give=data["resource_type_to_give"],
+                    amount_to_give=data["amount_to_give"],
+                    resource_type_to_receive=data["resource_type_to_receive"],
+                    amount_to_receive=data["amount_to_receive"]
+                )
+                print(f"💱 {current_player.name} traded {data['amount_to_give']} {data['resource_type_to_give']} "
+                        f"for {data['amount_to_receive']} {data['resource_type_to_receive']}")
+            elif action_name == "place_settlement":
                 vertex_id = data
                 vertex_obj = game.board.vertices[vertex_id]
                 try:

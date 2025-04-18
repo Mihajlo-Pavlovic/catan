@@ -24,7 +24,9 @@ from game.board import Vertex, Edge, Vertex_Id
 from game.constants import (
     MAX_SETTLEMENTS,          # Maximum number of settlements allowed
     MAX_ROADS,               # Maximum number of roads allowed
-    MAX_CITIES,              # Maximum number of cities allowed
+    MAX_CITIES,
+    PORT_RESOURCE_VERTEX_IDS_DICT,
+    PORT_VERTEX_IDS,              # Maximum number of cities allowed
 )
 
 class SimpleAgent:
@@ -120,23 +122,51 @@ class SimpleAgent:
         actions = []
 
         # 1. Build a settlement
-        if self._can_build_settlement():
+        can_build_settlement, needed_trades_settlement = self._can_build_settlement()
+        can_build_city, needed_trades_city = self._can_build_city()
+        can_build_road, road_trades = self._can_build_road()
+
+        
+        if can_build_settlement:
+            # Perform any necessary trades
             settlement_vertex_id = self._find_valid_settlement_spot(game)
             if settlement_vertex_id is not None:
+                for resource_to_give, resource_to_receive, give_rate in needed_trades_settlement:
+                    actions.append(("trade_with_bank", {
+                        "resource_type_to_give": resource_to_give,
+                        "amount_to_give": give_rate,
+                        "resource_type_to_receive": resource_to_receive,
+                        "amount_to_receive": 1
+                    }))
                 actions.append(("place_settlement", settlement_vertex_id))
-                # If we do place a settlement, we might stop here to limit action frequency
-                # but let's continue to see if we also want to build roads or cities in the same turn
 
         # 2. Build a road
-        elif self._can_build_road():
-            edge_tuple = self._find_valid_road_spot(game)
-            if edge_tuple is not None:
-                actions.append(("place_road", edge_tuple))
+        elif can_build_road:
+            # First perform any necessary trades
+            for resource_to_give, resource_to_receive, give_rate in road_trades:
+                actions.append(("trade_with_bank", {
+                    "resource_type_to_give": resource_to_give,
+                    "amount_to_give": give_rate,
+                    "resource_type_to_receive": resource_to_receive,
+                    "amount_to_receive": 1
+                }))
+            
+            # Then build the road
+            edge = self._find_valid_road_spot(game)
+            if edge is not None:
+                actions.append(("place_road", edge))
 
         # 3. Upgrade settlement to a city
-        elif self._can_build_city():
+        elif can_build_city:
             settlement_vertex_id = self._find_existing_settlement_to_upgrade()
             if settlement_vertex_id is not None:
+                for resource_to_give, resource_to_receive, give_rate in needed_trades_city:
+                    actions.append(("trade_with_bank", {
+                        "resource_type_to_give": resource_to_give,
+                        "amount_to_give": give_rate,
+                        "resource_type_to_receive": resource_to_receive,
+                        "amount_to_receive": 1
+                    }))
                 actions.append(("place_city", settlement_vertex_id))
 
         # 4. Buy development card
@@ -149,20 +179,80 @@ class SimpleAgent:
     # ----------------------------------------------------------------------
     # Settlement logic
     # ----------------------------------------------------------------------
-    def _can_build_settlement(self) -> bool:
+
+    def _can_build_settlement(self) -> tuple[bool, list[tuple[str, str]]]:
         """
-        Check if settlement construction is possible.
+        Check if settlement construction is possible and determine necessary trades.
         
         Verifies:
         1. Player has required resources (1 each: wood, brick, sheep, wheat)
         2. Player hasn't reached settlement limit
-        3. Valid placement location exists
+        3. Resources can be obtained through trading if not directly available
+        
+        Returns:
+            tuple[bool, list[tuple[str, str]]]: 
+                - bool: True if settlement can be built
+                - list of tuples (resource_to_give, resource_to_receive) for necessary trades
         """
-        r = self.player.resources
-        has_resources = (r["wood"] >= 1 and r["brick"] >= 1 and
-                r["sheep"] >= 1 and r["wheat"] >= 1)
-        has_space = len(self.player.settlements) < MAX_SETTLEMENTS
-        return has_resources and has_space
+        # Check settlement limit first
+        if len(self.player.settlements) >= MAX_SETTLEMENTS:
+            return False, []
+
+        # Check if has direct resources
+        required_resources = {"wood": 1, "brick": 1, "sheep": 1, "wheat": 1}
+        has_resources = all(self.player.resources[res] >= amt 
+                           for res, amt in required_resources.items())
+        if has_resources:
+            return True, []
+
+        # If direct resources not available, check trading possibilities
+        available_resources = self.player.resources.copy()
+        # Get available trade rates for each port the player has access to
+        trade_rates = {"wood": 4, "brick": 4, "sheep": 4, "wheat": 4, "ore": 4}  # Default 4:1
+        for settlement in self.player.settlements:
+            if settlement.id in PORT_VERTEX_IDS:
+                port_type = PORT_VERTEX_IDS[settlement.id]
+                if port_type == 'any':
+                    # 3:1 port - update all rates that are worse than 3
+                    for resource in trade_rates:
+                        trade_rates[resource] = min(trade_rates[resource], 3)
+                else:
+                    # 2:1 port for specific resource
+                    trade_rates[port_type] = 2
+
+        # Calculate needed resources and update available resources
+        needed_resources = {}
+        trades_to_make = []  # List of (resource_to_give, resource_to_receive) tuples
+        
+        for res, amt in required_resources.items():
+            if self.player.resources[res] < amt:
+                # Need this resource
+                needed_resources[res] = amt - self.player.resources[res]
+            else:
+                # Have enough of this resource, mark it as used
+                available_resources[res] -= amt
+
+        # Try to satisfy each needed resource through trading
+        for needed_res, needed_amt in needed_resources.items():
+            while needed_amt > 0:
+                best_trade_found = False
+                # Find the best resource to trade with (lowest trade rate)
+                for give_res, give_rate in sorted(trade_rates.items(), key=lambda x: x[1]):
+                    if available_resources[give_res] >= give_rate:
+                        # Can make this trade
+                        available_resources[give_res] -= give_rate
+                        needed_resources[needed_res] -= 1
+                        needed_amt -= 1
+                        trades_to_make.append((give_res, needed_res, give_rate))
+                        best_trade_found = True
+                        break
+                if not best_trade_found:
+                    # If we couldn't find any resource to trade for this need
+                    return False, []
+
+        # If we got here and trades_to_make is not empty, we can build through trading
+        can_build = all(amt <= 0 for amt in needed_resources.values())
+        return can_build, trades_to_make
 
     def _find_valid_settlement_spot(self, game: Game) -> Union[int, None]:
         """
@@ -214,19 +304,87 @@ class SimpleAgent:
     # ----------------------------------------------------------------------
     # Road logic
     # ----------------------------------------------------------------------
-    def _can_build_road(self) -> bool:
+    def _can_build_road(self) -> tuple[bool, list[tuple[str, str, int]]]:
         """
-        Check if road construction is possible.
+        Check if road construction is possible and determine necessary trades.
         
         Verifies:
         1. Player has required resources (1 wood, 1 brick)
         2. Player hasn't reached road limit
-        3. Valid placement location exists
+        3. Resources can be obtained through trading if not directly available
+        
+        Returns:
+            tuple[bool, list[tuple[str, str, int]]]: 
+                - bool: True if road can be built
+                - list of tuples (resource_to_give, resource_to_receive, rate) for necessary trades
         """
-        r = self.player.resources
-        has_resources = (r["wood"] >= 1 and r["brick"] >= 1)
-        has_space = len(self.player.roads) < MAX_ROADS
-        return has_resources and has_space
+        # Check road limit first
+        if len(self.player.roads) >= MAX_ROADS:
+            return False, []
+
+        # Check if has direct resources
+        required_resources = {"wood": 1, "brick": 1}
+        has_resources = all(self.player.resources[res] >= amt 
+                           for res, amt in required_resources.items())
+        if has_resources:
+            return True, []
+
+        # If direct resources not available, check trading possibilities
+        available_resources = self.player.resources.copy()
+        # Get available trade rates for each port the player has access to
+        trade_rates = {"wood": 4, "brick": 4, "sheep": 4, "wheat": 4, "ore": 4}  # Default 4:1
+        for settlement in self.player.settlements:
+            if settlement.id in PORT_VERTEX_IDS:
+                port_type = PORT_VERTEX_IDS[settlement.id]
+                if port_type == 'any':
+                    # 3:1 port - update all rates that are worse than 3
+                    for resource in trade_rates:
+                        trade_rates[resource] = min(trade_rates[resource], 3)
+                else:
+                    # 2:1 port for specific resource
+                    trade_rates[port_type] = 2
+
+        # Calculate needed resources and update available resources
+        needed_resources = {}
+        trades_to_make = []  # List of (resource_to_give, resource_to_receive, rate) tuples
+        
+        # First, account for resources we already have
+        for res, amt in required_resources.items():
+            if self.player.resources[res] < amt:
+                # Only add to needed_resources if we actually need more
+                needed_resources[res] = max(amt - self.player.resources[res], 0)
+            else:
+                # If we have enough, just mark it as used and don't add to needed_resources
+                available_resources[res] = self.player.resources[res] - amt
+
+        # Try to satisfy each needed resource through trading
+        for needed_res, needed_amt in needed_resources.items():
+            while needed_amt > 0:
+                best_trade_found = False
+                # Find the best resource to trade with (lowest trade rate)
+                for give_res, give_rate in sorted(trade_rates.items(), key=lambda x: x[1]):
+                    # Skip if this is a resource we need
+                    if give_res in needed_resources:
+                        continue
+                    # Skip if we don't have enough of this resource to trade
+                    if available_resources[give_res] < give_rate:
+                        continue
+                    
+                    # Can make this trade
+                    available_resources[give_res] -= give_rate
+                    needed_resources[needed_res] -= 1
+                    needed_amt -= 1
+                    trades_to_make.append((give_res, needed_res, give_rate))
+                    best_trade_found = True
+                    break
+                    
+                if not best_trade_found:
+                    # If we couldn't find any resource to trade for this need
+                    return False, []
+
+        # If we got here and trades_to_make is not empty, we can build through trading
+        can_build = all(amt <= 0 for amt in needed_resources.values())
+        return can_build, trades_to_make
 
     def _find_valid_road_spot(self, game: Game) -> Union[Tuple[int, int], None]:
         """
@@ -271,19 +429,89 @@ class SimpleAgent:
     # ----------------------------------------------------------------------
     # City logic
     # ----------------------------------------------------------------------
-    def _can_build_city(self) -> bool:
+    def _can_build_city(self) -> tuple[bool, list[tuple[str, str]]]:
         """
-        Check if city upgrade is possible.
+        Check if city upgrade is possible and determine necessary trades.
         
         Verifies:
         1. Player has required resources (2 wheat, 3 ore)
         2. Player hasn't reached city limit
-        3. Player has settlement to upgrade
+        3. Resources can be obtained through trading if not directly available
+        
+        Returns:
+            tuple[bool, list[tuple[str, str]]]: 
+                - bool: True if city can be built
+                - list of tuples (resource_to_give, resource_to_receive) for necessary trades
         """
-        r = self.player.resources
-        has_resources = (r["wheat"] >= 2 and r["ore"] >= 3)
-        has_space = len(self.player.cities) < MAX_CITIES
-        return has_resources and has_space
+        # Check city limit first
+        if len(self.player.cities) >= MAX_CITIES:
+            return False, []
+
+        # Check if has direct resources
+        required_resources = {"wheat": 2, "ore": 3}
+        has_resources = all(self.player.resources[res] >= amt 
+                           for res, amt in required_resources.items())
+        if has_resources:
+            return True, []
+
+        # If direct resources not available, check trading possibilities
+        available_resources = self.player.resources.copy()
+        # Get available trade rates for each port the player has access to
+        trade_rates = {"wood": 4, "brick": 4, "sheep": 4, "wheat": 4, "ore": 4}  # Default 4:1
+        for settlement in self.player.settlements:
+            if settlement.id in PORT_VERTEX_IDS:
+                port_type = PORT_VERTEX_IDS[settlement.id]
+                if port_type == 'any':
+                    # 3:1 port - update all rates that are worse than 3
+                    for resource in trade_rates:
+                        trade_rates[resource] = min(trade_rates[resource], 3)
+                else:
+                    # 2:1 port for specific resource
+                    trade_rates[port_type] = 2
+
+        # Calculate needed resources and update available resources
+        needed_resources = {'ore': 3, 'wheat': 2}
+        trades_to_make = []  # List of (resource_to_give, resource_to_receive) tuples
+        
+        # First, account for resources we already have
+        for res, amt in required_resources.items():
+            if self.player.resources[res] < amt:
+                # Only add to needed_resources if we actually need more
+                needed_resources[res] = amt - self.player.resources[res]
+                # Reduce available amount of this resource as we'll use what we have
+                available_resources[res] = 0
+            else:
+                # If we have enough, just mark it as used and don't add to needed_resources
+                available_resources[res] = self.player.resources[res] - amt
+
+        # Try to satisfy each needed resource through trading
+        for needed_res, needed_amt in needed_resources.items():
+            while needed_amt > 0:
+                best_trade_found = False
+                # Find the best resource to trade with (lowest trade rate)
+                for give_res, give_rate in sorted(trade_rates.items(), key=lambda x: x[1]):
+                    # Skip if this is a resource we need
+                    if give_res in needed_resources:
+                        continue
+                    # Skip if we don't have enough of this resource to trade
+                    if available_resources[give_res] < give_rate:
+                        continue
+                    
+                    # Can make this trade
+                    available_resources[give_res] -= give_rate
+                    needed_resources[needed_res] -= 1
+                    needed_amt -= 1
+                    trades_to_make.append((give_res, needed_res, give_rate))
+                    best_trade_found = True
+                    break
+                    
+                if not best_trade_found:
+                    # If we couldn't find any resource to trade for this need
+                    return False, []
+
+        # If we got here and trades_to_make is not empty, we can build through trading
+        can_build = all(amt <= 0 for amt in needed_resources.values())
+        return can_build, trades_to_make
 
     def _find_existing_settlement_to_upgrade(self) -> Union[int, None]:
         """

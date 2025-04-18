@@ -458,6 +458,7 @@ class Game:
             ValueError: If player doesn't have enough resources for the trade
         """
         # Validate resource types and amounts
+        print(f"resource_type_to_receive: {resource_type_to_receive}, amount_to_receive: {amount_to_receive}, resource_type_to_give: {resource_type_to_give}, amount_to_give: {amount_to_give}")
         assert resource_type_to_receive in RESOURCE_TYPES, f"Invalid resource type to receive: {resource_type_to_receive}"
         assert resource_type_to_give in RESOURCE_TYPES, f"Invalid resource type to give: {resource_type_to_give}"
         assert amount_to_receive > 0, "Amount to receive must be greater than 0"
@@ -474,9 +475,10 @@ class Game:
             elif settlement.id in PORT_RESOURCE_VERTEX_IDS_DICT[ANY]:
                 trade_rate = 3
 
-
+        assert trade_rate in [2, 3, 4], "Invalid trade rate"
+        assert amount_to_give == trade_rate, "Amount to give must be equal to the trade rate"
         # Calculate total cost
-        total_cost = amount_to_give * trade_rate
+        total_cost = amount_to_receive * trade_rate
 
         # Verify player has enough resources
         if player.resources[resource_type_to_give] < total_cost:
