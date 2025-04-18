@@ -114,6 +114,7 @@ class SimpleAgent:
         1. Build settlement if resources available and good location exists
         2. Build road if resources available and expansion possible
         3. Upgrade settlement to city if resources available
+        4. Buy development card if possible
         
         Returns:
             List of build actions to perform this turn
@@ -125,6 +126,7 @@ class SimpleAgent:
         can_build_settlement, needed_trades_settlement = self._can_build_settlement()
         can_build_city, needed_trades_city = self._can_build_city()
         can_build_road, road_trades = self._can_build_road()
+        can_buy_dev_card, dev_card_trades = self._can_buy_development_card(game)
 
         
         if can_build_settlement:
@@ -169,8 +171,19 @@ class SimpleAgent:
                     }))
                 actions.append(("place_city", settlement_vertex_id))
 
-        # 4. Buy development card
-        elif self._can_buy_development_card(game):
+        # 4. Try to buy a development card
+       
+        elif can_buy_dev_card:
+            # First perform any necessary trades
+            for resource_to_give, resource_to_receive, trade_rate in dev_card_trades:
+                actions.append(("trade_with_bank", {
+                    "resource_type_to_give": resource_to_give,
+                    "amount_to_give": trade_rate,
+                    "resource_type_to_receive": resource_to_receive,
+                    "amount_to_receive": 1
+                }))
+            
+            # Then buy the development card
             actions.append(("buy_development_card", None))
 
         # If we found no possible actions, we do nothing (end turn).
@@ -601,19 +614,87 @@ class SimpleAgent:
     # ----------------------------------------------------------------------
     # Development card logic
     # ----------------------------------------------------------------------
-    def _can_buy_development_card(self, game: Game) -> bool:
+    def _can_buy_development_card(self, game: Game) -> tuple[bool, list[tuple[str, str, int]]]:
         """
-        Check if buying a development card is possible.
+        Check if buying a development card is possible and determine necessary trades.
 
         Verifies:
         1. Player has required resources (1 wheat, 1 ore, 1 sheep)
         2. Player hasn't reached development card limit
+        3. Resources can be obtained through trading if not directly available
+
+        Returns:
+            tuple[bool, list[tuple[str, str, int]]]: 
+                - bool: True if development card can be bought
+                - list of tuples (resource_to_give, resource_to_receive, rate) for necessary trades
         """
-        has_resources = (self.player.resources["wheat"] >= 1 and 
-                         self.player.resources["ore"] >= 1 and 
-                         self.player.resources["sheep"] >= 1)
-        development_card_left = len(game.development_deck) > 0
-        return has_resources and development_card_left
+        # Check if there are development cards left
+        if len(game.development_deck) == 0:
+            return False, []
+
+        # Check if has direct resources
+        required_resources = {"wheat": 1, "ore": 1, "sheep": 1}
+        has_resources = all(self.player.resources[res] >= amt 
+                           for res, amt in required_resources.items())
+        if has_resources:
+            return True, []
+
+        # If direct resources not available, check trading possibilities
+        available_resources = self.player.resources.copy()
+        # Get available trade rates for each port the player has access to
+        trade_rates = {"wood": 4, "brick": 4, "sheep": 4, "wheat": 4, "ore": 4}  # Default 4:1
+        for settlement in self.player.settlements:
+            if settlement.id in PORT_VERTEX_IDS:
+                port_type = PORT_VERTEX_IDS[settlement.id]
+                if port_type == 'any':
+                    # 3:1 port - update all rates that are worse than 3
+                    for resource in trade_rates:
+                        trade_rates[resource] = min(trade_rates[resource], 3)
+                else:
+                    # 2:1 port for specific resource
+                    trade_rates[port_type] = 2
+
+        # Calculate needed resources and update available resources
+        needed_resources = {}
+        trades_to_make = []  # List of (resource_to_give, resource_to_receive, rate) tuples
+        
+        # First, account for resources we already have
+        for res, amt in required_resources.items():
+            if self.player.resources[res] < amt:
+                # Only add to needed_resources if we actually need more
+                needed_resources[res] = max(amt - self.player.resources[res], 0)
+            else:
+                # If we have enough, just mark it as used and don't add to needed_resources
+                available_resources[res] = self.player.resources[res] - amt
+
+        # Try to satisfy each needed resource through trading
+        for needed_res, needed_amt in needed_resources.items():
+            while needed_amt > 0:
+                best_trade_found = False
+                # Find the best resource to trade with (lowest trade rate)
+                for give_res, give_rate in sorted(trade_rates.items(), key=lambda x: x[1]):
+                    # Skip if this is a resource we need
+                    if give_res in needed_resources:
+                        continue
+                    # Skip if we don't have enough of this resource to trade
+                    if available_resources[give_res] < give_rate:
+                        continue
+                    
+                    # Can make this trade
+                    available_resources[give_res] -= give_rate
+                    needed_resources[needed_res] -= 1
+                    needed_amt -= 1
+                    trades_to_make.append((give_res, needed_res, give_rate))
+                    best_trade_found = True
+                    break
+                    
+                if not best_trade_found:
+                    # If we couldn't find any resource to trade for this need
+                    return False, []
+
+        # If we got here and trades_to_make is not empty, we can build through trading
+        can_buy = all(amt <= 0 for amt in needed_resources.values())
+        return can_buy, trades_to_make
     
     # ----------------------------------------------------------------------
     # Slash logic

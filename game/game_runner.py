@@ -68,7 +68,7 @@ def run_game_with_agents():
                 print(f"🏗️  {agent.player.name} placed initial road at edge {v1}-{v2}")
 
     # 6) Now call the turn-based game loop
-    play_game(game, agents, max_turns=100)
+    return play_game(game, agents, max_turns=100)
 
 def play_game(game: Game, agents: Dict[Player, "SimpleAgent"], max_turns: int = 100000):
     """
@@ -82,7 +82,7 @@ def play_game(game: Game, agents: Dict[Player, "SimpleAgent"], max_turns: int = 
         for p in game.players:
             if p.victory_points + p.development_cards[DevelopmentCard.VICTORY_POINT] >= 10:
                 print(f"🏆 Player {p.name} wins with {p.victory_points + p.development_cards[DevelopmentCard.VICTORY_POINT]} points!")
-                return
+                return turn_count
         
         current_agent = agents[turn_count % len(game.players)]
         current_player = current_agent.player
@@ -181,7 +181,7 @@ def play_game(game: Game, agents: Dict[Player, "SimpleAgent"], max_turns: int = 
     
     # If we reach here, we've hit the max_turns limit
     print(f"Game ended due to turn limit. No winner found. Last turn: {turn_count}")
-
+    return turn_count
 # (Optional) If you want to run directly from the command line:
 if __name__ == "__main__":
     run_game_with_agents()
