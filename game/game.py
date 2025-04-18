@@ -124,7 +124,7 @@ class Game:
         #    - The player's existing road(s), OR
         #    - A player's settlement/city (which itself is connected to roads).
         #    You can skip this if you rely on the agent to only propose valid edges.
-        if not initial_placement and not self._road_is_connected(player, edge):
+        if not self._road_is_connected(player, edge):
             raise ValueError("Road must connect to the player's existing roads or settlements.")
         
         # 4. Place the road
@@ -485,6 +485,149 @@ class Game:
         # Execute trade
         player.resources[resource_type_to_give] -= total_cost
         player.resources[resource_type_to_receive] += amount_to_receive
+
+
+
+    def _use_play_year_of_plenty(self, player: Player, resources_to_receive: list[str]):
+        """
+        Use a Year of Plenty development card to receive any two resources from the bank.
+        
+        The Year of Plenty card allows a player to take any two resources of their choice.
+        The two resources can be the same type or different types.
+        
+        Args:
+            player (Player): The player using the Year of Plenty card
+            resources_to_receive (list[str]): List of two resources the player wants to receive
+            
+        Raises:
+            AssertionError: If player doesn't have a Year of Plenty card
+            AssertionError: If not exactly two resources are specified
+            AssertionError: If any specified resource type is invalid
+        """
+        # Verify player has the card to use
+        assert player.development_cards[DevelopmentCard.YEAR_OF_PLENTY] > 0, "Player does not have any year of plenty cards"
+        
+        # Verify exactly two resources were chosen
+        assert len(resources_to_receive) == 2, "Player must choose 2 resources to receive"
+        
+        # Verify all chosen resources are valid resource types
+        assert all(resource in RESOURCE_TYPES for resource in resources_to_receive), "Invalid resource type"
+        
+        # Remove the used card from player's hand
+        player.development_cards[DevelopmentCard.YEAR_OF_PLENTY] -= 1
+        
+        # Give the chosen resources to the player
+        for resource_type in resources_to_receive:
+            player.resources[resource_type] += 1
+
+
+    def _play_road_building(self, player: Player, edges_to_build: list[Edge]):
+        """
+        Use a Road Building development card to place up to two roads on the board.
+        
+        The Road Building card allows a player to build two roads at no resource cost.
+        The roads must follow normal placement rules but don't require any resources.
+        
+        Args:
+            player (Player): The player using the Road Building card
+            edges_to_build (list[Edge]): List of edges where roads will be built (max 2)
+            
+        Raises:
+            AssertionError: If player doesn't have a Road Building card
+            AssertionError: If no edges are specified for building
+        """
+        # Verify player has the card to use
+        assert player.development_cards[DevelopmentCard.ROAD_BUILDING] > 0, "Player does not have any road building cards"
+        assert len(edges_to_build) > 0, "Player must build at least 1 road"
+
+        # Remove the used card from player's hand
+        player.development_cards[DevelopmentCard.ROAD_BUILDING] -= 1
+
+        # Place each road (with initial_placement=True to skip resource costs)
+        for edge in edges_to_build:
+            self._place_road(player, edge, True)
+
+
+    def _play_monopoly(self, player: Player, resource_type: str):
+        """
+        Use a Monopoly development card to take all of one resource type from other players.
+        
+        The Monopoly card allows a player to name one resource type and collect all cards
+        of that type from all other players.
+        
+        Args:
+            player (Player): The player using the Monopoly card
+            resource_type (str): The type of resource to monopolize
+            
+        Raises:
+            AssertionError: If player doesn't have a Monopoly card
+            AssertionError: If the specified resource type is invalid
+        """
+        # Verify player has the card and resource type is valid
+        assert player.development_cards[DevelopmentCard.MONOPOLY] > 0, "Player does not have any monopoly cards"
+        assert resource_type in RESOURCE_TYPES, "Invalid resource type"
+
+        # Remove the used card from player's hand
+        player.development_cards[DevelopmentCard.MONOPOLY] -= 1
+
+        # Collect the specified resource from all other players
+        for p in self.players:
+            if p != player:
+                # Add other player's resources to the monopoly player
+                player.resources[resource_type] += p.resources[resource_type]
+                # Remove resources from other player
+                p.resources[resource_type] = 0
+
+
+    def _play_knight(self, coord_to_move_robber: tuple[int, int], player: Player, player_to_steal_from: Player):
+        """
+        Use a Knight development card to move the robber and steal a resource.
+        
+        The Knight card allows a player to:
+        1. Move the robber to a new hex tile
+        2. Steal one random resource from a player with a settlement/city adjacent to the new robber location
+        
+        Args:
+            coord_to_move_robber (tuple[int, int]): New coordinates for the robber
+            player (Player): The player using the Knight card
+            player_to_steal_from (Player): The player to steal a resource from
+            
+        Raises:
+            AssertionError: If player doesn't have a Knight card
+            AssertionError: If trying to steal from self
+            AssertionError: If robber is moved to current location
+            AssertionError: If target player has no resources
+            AssertionError: If target player has no settlement on the chosen tile
+        """
+        # Verify player has the card and basic rules
+        assert player.development_cards[DevelopmentCard.KNIGHT] > 0, "Player does not have any knight cards"
+        assert player_to_steal_from != player, "Cannot steal from yourself"
+        assert coord_to_move_robber != self.board.robber, "Robber is already on the tile"
+
+        # Remove the used card from player's hand
+        player.development_cards[DevelopmentCard.KNIGHT] -= 1
+
+        # Move the robber to the new location
+        self._move_robber(coord_to_move_robber)
+
+        # Handle stealing if a target player is specified
+        if player_to_steal_from is not None:
+            # Verify target player has resources and a settlement on the robber tile
+            assert player_to_steal_from.resources[ANY] > 0, "Player to steal from does not have any resources"
+            assert any(vertex in self.board.tile_cord_dict[coord_to_move_robber].vertices 
+                      for vertex in player_to_steal_from.settlements), "Player to steal from does not have a settlement on the tile"
+            # Steal a random resource
+            self._steal_resource(player, player_to_steal_from)
+      
+      
+
+      
+      
+
+
+
+
+
       
       
       

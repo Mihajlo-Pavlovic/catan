@@ -4,7 +4,7 @@ from typing import Dict
 
 from game.game import Game
 from game.player import Player
-
+from game.development_cards import DevelopmentCard
 # 1) Import your SimpleAgent (adjust import path if necessary)
 from agent.simple_builder_agent.simple_builder_agent import SimpleAgent
 
@@ -80,7 +80,7 @@ def play_game(game: Game, agents: Dict[Player, "SimpleAgent"], max_turns: int = 
     while turn_count < 100000:
         # Check for a winning condition (e.g., first to 10 points).
         for p in game.players:
-            if p.victory_points >= 10:
+            if p.victory_points + p.development_cards[DevelopmentCard.VICTORY_POINT] >= 10:
                 print(f"🏆 Player {p.name} wins with {p.victory_points} points!")
                 return
         
