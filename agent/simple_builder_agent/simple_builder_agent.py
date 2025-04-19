@@ -149,6 +149,32 @@ class SimpleAgent:
                     }))
                 actions.append(("place_settlement", settlement_vertex_id))
 
+        elif can_buy_dev_card:
+            # First perform any necessary trades
+            for resource_to_give, resource_to_receive, trade_rate in dev_card_trades:
+                actions.append(("trade_with_bank", {
+                    "resource_type_to_give": resource_to_give,
+                    "amount_to_give": trade_rate,
+                    "resource_type_to_receive": resource_to_receive,
+                    "amount_to_receive": 1
+                }))
+            
+            # Then buy the development card
+            actions.append(("buy_development_card", None))
+
+
+        # 3. Upgrade settlement to a city
+        elif can_build_city:
+            settlement_vertex_id = self._find_existing_settlement_to_upgrade()
+            if settlement_vertex_id is not None:
+                for resource_to_give, resource_to_receive, give_rate in needed_trades_city:
+                    actions.append(("trade_with_bank", {
+                        "resource_type_to_give": resource_to_give,
+                        "amount_to_give": give_rate,
+                        "resource_type_to_receive": resource_to_receive,
+                        "amount_to_receive": 1
+                    }))
+                actions.append(("place_city", settlement_vertex_id))
         # 2. Build a road
         elif can_build_road:
             # First perform any necessary trades
@@ -165,33 +191,9 @@ class SimpleAgent:
             if edge is not None:
                 actions.append(("place_road", edge))
 
-        # 3. Upgrade settlement to a city
-        elif can_build_city:
-            settlement_vertex_id = self._find_existing_settlement_to_upgrade()
-            if settlement_vertex_id is not None:
-                for resource_to_give, resource_to_receive, give_rate in needed_trades_city:
-                    actions.append(("trade_with_bank", {
-                        "resource_type_to_give": resource_to_give,
-                        "amount_to_give": give_rate,
-                        "resource_type_to_receive": resource_to_receive,
-                        "amount_to_receive": 1
-                    }))
-                actions.append(("place_city", settlement_vertex_id))
-
         # 4. Try to buy a development card
        
-        elif can_buy_dev_card:
-            # First perform any necessary trades
-            for resource_to_give, resource_to_receive, trade_rate in dev_card_trades:
-                actions.append(("trade_with_bank", {
-                    "resource_type_to_give": resource_to_give,
-                    "amount_to_give": trade_rate,
-                    "resource_type_to_receive": resource_to_receive,
-                    "amount_to_receive": 1
-                }))
-            
-            # Then buy the development card
-            actions.append(("buy_development_card", None))
+
 
         # If we found no possible actions, we do nothing (end turn).
         return actions
@@ -331,7 +333,8 @@ class SimpleAgent:
         Verifies:
         1. Player has required resources (1 wood, 1 brick)
         2. Player hasn't reached road limit
-        3. Resources can be obtained through trading if not directly available
+        3. Resources can be obtained through using development card year of plenty
+        4. Resources can be obtained through trading if not directly available
         
         Returns:
             tuple[bool, list[tuple[str, str, int]]]: 
@@ -556,70 +559,146 @@ class SimpleAgent:
         Determine robber placement and theft target.
         
         Strategy:
-        1. Target player with highest victory points
-        2. Place robber on high-value tile
+        1. Target player with highest victory points who has resources
+        2. Place robber on highest-value tile (based on probability and resource type)
         3. Avoid self-harm (own settlements)
+        4. Consider both settlements and cities (cities are higher value targets)
+        5. Ensure target player has resources to steal
         
         Returns:
             Tuple of (robber_coordinates, player_to_steal_from)
         """
-        # Find player with most points (excluding self)
-        target_player = None
-        max_points = -1
+        # Score each player as a potential target
+        player_scores = {}
         for player in game.players:
-            if player != self.player and player.victory_points > max_points and sum(player.resources.values()) > 0:
-                    target_player = player
-                    max_points = player.victory_points
-
-        # Get all valid tiles (not current robber location and not our settlements)
-        valid_tiles = []
-        for coord, tile in game.board.tiles.items():
-            if coord == game.board.robber:
+            if player == self.player or sum(player.resources.values()) == 0:
                 continue
             
-            our_settlement_here = False
-            for vertex in tile.vertices:
-                if vertex.settlement == self.player or vertex.city == self.player:
-                    our_settlement_here = True
-                    break
+            # Base score is victory points
+            score = player.victory_points * 2
             
-            if not our_settlement_here:
-                valid_tiles.append(coord)
-
-        if not valid_tiles:  # If no valid tiles found (shouldn't happen in normal game)
-            return (next(coord for coord in game.board.tiles.keys() 
-                    if coord != game.board.robber), None)
-
-        if target_player is None:
-            # If no valid target, move robber to any valid tile
-            return (valid_tiles[0], None)
-
-        # Find best tile to target opponent
-        best_tile_coord = None
+            # Bonus for having lots of resources
+            score += min(sum(player.resources.values()), 7) // 2
+            
+            # Bonus for having largest army or longest road
+            if player.victory_points > len(player.settlements) + len(player.cities):
+                score += 2
+            
+            player_scores[player] = score
         
-        # First preference: tiles where target player has buildings but we don't
-        for coord in valid_tiles:
-            tile = game.board.tiles[coord]
-            target_player_here = False
+        if not player_scores:
+            # No valid targets with resources, just move robber away from our buildings
+            valid_coords = []
+            for coord, tile in game.board.tiles.items():
+                if coord == game.board.robber or tile.resource_type == "desert":
+                    continue
+                if not any(v.settlement == self.player or v.city == self.player 
+                          for v in tile.vertices):
+                    valid_coords.append(coord)
+            return (valid_coords[0] if valid_coords else next(
+                coord for coord, tile in game.board.tiles.items() 
+                if coord != game.board.robber), None)
+        
+        # Get target player with highest score
+        target_player = max(player_scores.items(), key=lambda x: x[1])[0]
+        
+        # Score each tile based on multiple factors
+        tile_scores = {}
+        # Track players with buildings on each tile for later reference
+        tile_players = {}  # coord -> list of players with buildings
+        
+        for coord, tile in game.board.tiles.items():
+            if coord == game.board.robber or tile.resource_type == "desert":
+                continue
+            
+            # Skip if we have buildings here
+            if any(v.settlement == self.player or v.city == self.player 
+                   for v in tile.vertices):
+                continue
+            
+            # Base score from probability
+            prob_score = {
+                2: 1, 12: 1,
+                3: 2, 11: 2,
+                4: 3, 10: 3,
+                5: 4, 9: 4,
+                6: 5, 8: 5
+            }.get(tile.number, 0)
+            
+            # Resource value score
+            resource_score = {
+                "ore": 5,    # Cities need ore
+                "wheat": 4,  # Cities and dev cards need wheat
+                "sheep": 3,  # Dev cards need sheep
+                "brick": 2,  # Early game roads/settlements
+                "wood": 1    # Early game roads/settlements
+            }.get(tile.resource_type, 0)
+            
+            score = prob_score * resource_score
+            
+            # Track all players with buildings on this tile
+            players_here = set()
+            target_buildings = 0
+            other_players_buildings = 0
             
             for vertex in tile.vertices:
-                if vertex.settlement == target_player or vertex.city == target_player:
-                    target_player_here = True
-                    break
+                if vertex.settlement is not None:
+                    player = vertex.settlement
+                    if player != self.player:
+                        players_here.add(player)
+                        if player == target_player:
+                            target_buildings += 1
+                        else:
+                            other_players_buildings += 1
+                if vertex.city is not None:
+                    player = vertex.city
+                    if player != self.player:
+                        players_here.add(player)
+                        if player == target_player:
+                            target_buildings += 2  # Cities count double
+                        else:
+                            other_players_buildings += 2
+            
+            # Only consider tiles where at least one player has resources
+            if not any(sum(p.resources.values()) > 0 for p in players_here):
+                continue
+            
+            # Bonus for targeting our chosen player
+            score *= (1 + target_buildings)
+            
+            # Small bonus for hitting other players too
+            score *= (1 + other_players_buildings * 0.2)
+            
+            tile_scores[coord] = score
+            tile_players[coord] = players_here
+        
+        if not tile_scores:
+            # No ideal tiles, find any valid tile
+            valid_coords = [coord for coord, tile in game.board.tiles.items()
+                           if coord != game.board.robber and tile.resource_type != "desert"]
+            return (valid_coords[0], None)
+        
+        # Get best scoring tile
+        best_tile = max(tile_scores.items(), key=lambda x: x[1])[0]
+        
+        # Verify target player has buildings on chosen tile and has resources
+        tile = game.board.tiles[best_tile]
+        if not any((v.settlement == target_player or v.city == target_player) 
+                   for v in tile.vertices) or sum(target_player.resources.values()) == 0:
+            # Find new target player who has buildings here AND resources
+            players_on_tile = tile_players[best_tile]
+            potential_targets = [p for p in players_on_tile 
+                               if sum(p.resources.values()) > 0]
+            
+            if potential_targets:
+                # Choose the player with the most victory points among those with resources
+                target_player = max(potential_targets, 
+                                  key=lambda p: p.victory_points)
+            else:
+                # No players with resources on this tile
+                target_player = None
                 
-            if target_player_here:
-                best_tile_coord = coord
-                break
-        
-        # If no ideal tile found, use any valid tile
-        if best_tile_coord is None:
-            best_tile_coord = valid_tiles[0]
-            for vertex in game.board.tiles[valid_tiles[0]].vertices:
-                if vertex.settlement is not None and vertex.settlement != self.player:
-                    target_player = vertex.settlement
-                    break
-        
-        return (best_tile_coord, target_player)
+        return (best_tile, target_player)
     
     # ----------------------------------------------------------------------
     # Development card logic

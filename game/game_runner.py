@@ -18,8 +18,8 @@ def run_game_with_agents():
     player1 = Player(name="Alice", color="red")
     player2 = Player(name="Bob", color="blue")
     player3 = Player(name="Charlie", color="green")
-
-    players = [player1, player2, player3]
+    player4 = Player(name="David", color="yellow")  
+    players = [player1, player2, player3, player4]
 
     # 3) Create a game instance
     game = Game(players)
@@ -29,6 +29,7 @@ def run_game_with_agents():
         SimpleAgent(player1),
         SimpleAgent(player2),
         SimpleAgent(player3),
+        SimpleAgent(player4),
     ]
 
     # 5) Perform initial placements (if you want the agent to do them)
