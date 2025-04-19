@@ -398,6 +398,42 @@ class SimpleAgent:
         # If we got here and trades_to_make is not empty, we can build through trading
         can_build = all(amt <= 0 for amt in needed_resources.values())
         return can_build, trades_to_make
+    
+    # ----------------------------------------------------------------------
+    # Slash logic
+    # ----------------------------------------------------------------------
+    # TODO Cover with tests
+    def handle_slash(self) -> Dict[str, int]:
+        """
+        Determine which resources to discard randomly when the player has more than 7 cards.
+        Returns:
+            Dict[str, int]: A mapping of resource types to the number of cards to discard.
+        """
+        discard_dict = {}
+        total_resources = sum(self.player.resources.values())
+
+
+        # Calculate how many cards to discard (half, rounded down)
+        required_discard = total_resources // 2
+
+        # Convert resources to a list where each entry corresponds to one card
+        # e.g. if we have 3 wood, we have ["wood", "wood", "wood"] in the list
+        resource_cards = []
+        for resource_type, amount in self.player.resources.items():
+            resource_cards.extend([resource_type] * amount)
+
+        # Randomly choose which cards to discard
+        # We pop from resource_cards to form the discard set
+        random.shuffle(resource_cards)
+        cards_to_discard = resource_cards[:required_discard]
+
+        # Count how many of each resource we selected
+        for card in cards_to_discard:
+            discard_dict[card] = discard_dict.get(card, 0) + 1
+
+        return discard_dict
+
+
         
     def _can_build_city_with_resources(self, available_resources: Dict[str, int]) -> tuple[bool, list[tuple[str, str, int]]]:
         """
