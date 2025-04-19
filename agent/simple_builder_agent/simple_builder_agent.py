@@ -26,7 +26,6 @@ from game.constants import (
     MAX_SETTLEMENTS,          # Maximum number of settlements allowed
     MAX_ROADS,               # Maximum number of roads allowed
     MAX_CITIES,
-    PORT_RESOURCE_VERTEX_IDS_DICT,
     PORT_VERTEX_IDS,              # Maximum number of cities allowed
 )
 
